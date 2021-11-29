@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suppressions PUBLIC
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+
+<suppressions>
+    <suppress files=".*Test\.java$" checks="AbstractClassName"/>
+    <suppress files=".*Test\.java$" checks="AvoidStaticImport"/>
+    <suppress files=".*Test\.java$" checks="DeclarationOrder"/>
+    <suppress files=".*Test\.java$" checks="DesignForExtension"/>
+    <suppress files=".*Test\.java$" checks="FinalLocalVariable"/>
+    <suppress files=".*Test\.java$" checks="FinalParameters"/>
+    <suppress files=".*Test\.java$" checks="IllegalCatch"/>
+    <suppress files=".*Test\.java$" checks="IllegalThrows"/>
+    <suppress files=".*Test\.java$" checks="Javadoc.*"/>
+    <suppress files=".*Test\.java$" checks="MagicNumber"/>
+    <suppress files=".*Test\.java$" checks="LineLength"/>
+    <suppress files=".*Test\.java$" checks="MethodName"/>
+    <suppress files=".*Test\.java$" checks="MemberName.*"/>
+    <suppress files=".*Test\.java$" checks="MultipleStringLiterals"/>
+    <suppress files=".*Test\.java$" checks="VisibilityModifier"/>
+
+</suppressions>

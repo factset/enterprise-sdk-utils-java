@@ -1,0 +1,22 @@
+{
+  "name": "testName",
+  "clientId": "testClientId",
+  "clientAuthType": "testClientAuthType",
+  "owners": [
+    "testOwners"
+  ],
+  "jwk": {
+             "p": "testP",
+             "kty": "RSA",
+             "q": "testQ",
+             "d": "testD",
+             "e": "testE",
+             "use": "sig",
+             "kid": "testKid",
+             "qi": "testQi",
+             "dp": "testDp",
+             "alg": "RS256",
+             "dq": "testDq",
+             "n": "testN"
+         }
+}
