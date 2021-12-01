@@ -29,6 +29,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Class that supports FactSet's implementation of the OAuth 2.0 client credentials flow. This class
@@ -37,6 +39,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ConfidentialClient implements OAuth2Client {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConfidentialClient.class);
     private final Configuration config;
     private final OIDCProviderMetadata providerMetadata;
     private TokenRequestBuilder tokenRequestBuilder;
@@ -75,7 +78,9 @@ public class ConfidentialClient implements OAuth2Client {
         throws AuthServerMetadataContentException, AuthServerMetadataException {
         Objects.requireNonNull(config, "Configuration object must not be null");
         this.config = config;
+        LOGGER.debug("Finished initialising configuration");
 
+        LOGGER.debug("Attempting to get response from Well Known URI");
         try (InputStream stream = config.getWellKnownUrl().openStream()) {
             final String providerInfo = IOUtils.readInputStreamToString(stream);
             this.providerMetadata = OIDCProviderMetadata.parse(providerInfo);
@@ -86,6 +91,7 @@ public class ConfidentialClient implements OAuth2Client {
             throw new AuthServerMetadataException("Error retrieving contents from WellKnownUri: " +
                 config.getWellKnownUrl().toString(), e);
         }
+        LOGGER.debug("Response received from Well Known URI");
 
         this.tokenRequestBuilder =
             new TokenRequestBuilder().uri(this.providerMetadata.getTokenEndpointURI());
@@ -142,6 +148,7 @@ public class ConfidentialClient implements OAuth2Client {
     @Override
     public String getAccessToken() throws AccessTokenException, SigningJwsException {
         if (this.isCachedTokenValid()) {
+            LOGGER.info("Retrieved access token which expires in: {} seconds", TimeUnit.MILLISECONDS.toSeconds(this.accessTokenExpireTime - System.currentTimeMillis()));
             return this.accessToken.toString();
         }
 
@@ -157,6 +164,8 @@ public class ConfidentialClient implements OAuth2Client {
     }
 
     private String fetchAccessToken() throws AccessTokenException, SigningJwsException {
+        LOGGER.debug("Fetching a new access token...");
+
         final TokenResponse tokenRes;
         try {
             final SignedJWT signedJwt = this.getSignedJwt();
@@ -171,6 +180,7 @@ public class ConfidentialClient implements OAuth2Client {
             this.accessToken = tokenRes.toSuccessResponse().getTokens().getAccessToken();
             this.accessTokenExpireTime =
                 this.jwsIssuedAt + TimeUnit.SECONDS.toMillis(this.accessToken.getLifetime());
+            LOGGER.info("Fetched access token which expires in: {} seconds", this.accessToken.getLifetime());
             return this.accessToken.toString();
         }
 
@@ -184,6 +194,8 @@ public class ConfidentialClient implements OAuth2Client {
     }
 
     protected SignedJWT getSignedJwt() throws SigningJwsException {
+        LOGGER.debug("Signing the JWT...");
+      
         final RSAKey jwk = this.config.getJwk();
         final RSASSASigner signer;
         try {
@@ -216,6 +228,7 @@ public class ConfidentialClient implements OAuth2Client {
             throw new SigningJwsException("Failed signing of the JWS", e);
         }
 
+        LOGGER.debug("JWT signed successfully");
         return signedJWT;
     }
 }
