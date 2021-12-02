@@ -65,11 +65,26 @@ publishing {
             artifact javadocJar
 
             pom {
-                description = "FactSet SDK Utilities for Java"
+                name = 'FactSet SDK Utilities for Java'
+                description = 'FactSet SDK Utilities for Java'
+                url = 'https://github.com/factset/enterprise-sdk-utils-java'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'enterprisesdk'
+                        organization = 'FactSet'
+                        organizationUrl = 'https://developer.factset.com'
+                    }
+                }
                 scm {
-                    connection = "scm:git:git@github.com:factset/enterprise-sdk-utils-java.git"
-                    developerConnection = "scm:git:ssh://factset/enterprise-sdk-utils-java.git"
-                    url = "https://github.com/factset/enterprise-sdk-utils-java"
+                    connection = 'scm:git:git://github.com/factset/enterprise-sdk-utils-java.git'
+                    developerConnection = 'scm:git:ssh://factset/enterprise-sdk-utils-java.git'
+                    url = 'https://github.com/factset/enterprise-sdk-utils-java/'
                 }
             }
         }
