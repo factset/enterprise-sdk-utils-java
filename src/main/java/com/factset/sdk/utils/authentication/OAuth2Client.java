@@ -13,6 +13,8 @@ public interface OAuth2Client {
     /**
      * Returns the access token.
      * @return The access token for protected resource requests.
+     * @throws AccessTokenException If it can't make a successful request or parse the TokenRequest.
+     * @throws SigningJwsException  If the signing of the JWS fails.
      */
-    String getAccessToken() throws AccessTokenException, SigningJwsException, IOException;
+    String getAccessToken() throws AccessTokenException, SigningJwsException;
 }

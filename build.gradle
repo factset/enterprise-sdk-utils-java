@@ -1,15 +1,15 @@
-plugins {
-    id 'java-library'
-    id 'jacoco'
-    id 'maven-publish'
+repositories {
+    mavenLocal()
+    mavenCentral()
 }
+
+apply plugin: 'java-library'
+apply plugin: 'signing'
+apply plugin: 'jacoco'
+apply plugin: 'maven-publish'
 
 group 'com.factset.sdk'
 version '0.9.0'
-
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     implementation 'org.slf4j:slf4j-api:1.7.32'
@@ -23,14 +23,20 @@ dependencies {
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
 }
 
+task sourcesJar(type: Jar) {
+    archiveClassifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar) {
+    archiveClassifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+
 test {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
-}
-
-jacoco {
-    toolVersion = "0.8.7"
-    reportsDirectory = layout.buildDirectory.dir('customJacocoReportDir') as Directory
 }
 
 jacocoTestReport {
@@ -43,10 +49,29 @@ jacocoTestReport {
     }
 }
 
+artifacts {
+    archives jar
+    archives javadocJar
+    archives sourcesJar
+}
+
+
 publishing {
     publications {
-        library(MavenPublication) {
+        mavenJava(MavenPublication) {
             from components.java
+
+            artifact sourcesJar
+            artifact javadocJar
+
+            pom {
+                description = "FactSet SDK Utilities for Java"
+                scm {
+                    connection = "scm:git:git@github.com:factset/enterprise-sdk-utils-java.git"
+                    developerConnection = "scm:git:ssh://factset/enterprise-sdk-utils-java.git"
+                    url = "https://github.com/factset/enterprise-sdk-utils-java"
+                }
+            }
         }
     }
 
@@ -64,4 +89,8 @@ publishing {
             }
         }
     }
+}
+
+signing {
+    sign publishing.publications.mavenJava
 }
