@@ -9,18 +9,18 @@ apply plugin: 'jacoco'
 apply plugin: 'maven-publish'
 
 group 'com.factset.sdk'
-version '0.9.0'
+version '0.10.0'
 
 dependencies {
-    implementation 'org.slf4j:slf4j-api:1.7.32'
-    implementation 'org.slf4j:slf4j-simple:1.7.32'
-    implementation 'com.nimbusds:nimbus-jose-jwt:9.15.2'
-    implementation 'org.json:json:20210307'
+    implementation 'org.slf4j:slf4j-api:1.7.36'
+    implementation 'org.slf4j:slf4j-simple:1.7.36'
+    implementation 'com.nimbusds:nimbus-jose-jwt:9.19'
+    implementation 'org.json:json:20211205'
     implementation 'org.apache.httpcomponents:httpclient:4.5.13'
-    implementation 'com.nimbusds:oauth2-oidc-sdk:9.19'
-    testImplementation 'org.mockito:mockito-core:4.0.0'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    implementation 'com.nimbusds:oauth2-oidc-sdk:9.25'
+    testImplementation 'org.mockito:mockito-core:4.3.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
 }
 
 task sourcesJar(type: Jar) {

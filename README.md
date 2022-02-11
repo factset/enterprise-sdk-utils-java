@@ -10,15 +10,31 @@ This repository contains a collection of utilities that supports FactSet's SDK i
 
 ## Installation
 
-Add the below dependency to the project
+### Maven
 
-  ```xml
-  <dependency>
+Add the below dependency to the project's POM:
+
+```xml
+<dependency>
     <groupId>com.factset.sdk</groupId>
     <artifactId>utils</artifactId>
-    <version>ARTIFACT_VERSION</version>
-  </dependency>
-  ```
+    <version>0.10.0</version>
+</dependency>
+```
+
+### Gradle
+
+Add these dependencies to your project's build file:
+
+```groovy
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation "com.factset.sdk:utils:0.10.0"
+}
+```
 
 ## Usage
 
@@ -34,38 +50,50 @@ First, you need to create the OAuth 2.0 client configuration that will be used t
 ```java
 package com.factset.sdk.console;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.HttpURLConnection;
 
 import com.factset.sdk.utils.authentication.ConfidentialClient;
 
 public class Console {
 
     public static void main(String[] args) {
-
+        HttpURLConnection connection = null;
         try {
             ConfidentialClient confidentialClient = new ConfidentialClient("./path/to/config.json");
 
             String token = confidentialClient.getAccessToken();
-
             String bearerHeader = "Bearer " + token;
 
-            HttpClient client = HttpClient.newHttpClient();
+            URL url = new URL("https://api.factset.com/analytics/lookups/v3/currencies");
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.factset.com/analytics/lookups/v3/currencies"))
-                    .GET()
-                    .header("Authorization", bearerHeader)
-                    .header("Content-Type", "application/json")
-                    .build();
+            connection = (HttpURLConnection) url.openConnection();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Authorization", bearerHeader);
+            connection.setRequestProperty("Content-Type", "application/json");
 
-            System.out.println(response.body());
+            InputStream is = connection.getInputStream();
+            BufferedReader rd = new BufferedReader(new InputStreamReader(is));
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = rd.readLine()) != null) {
+                response.append(line);
+                response.append('\r');
+            }
+            rd.close();
+
+            System.out.println(token);
+            System.out.println(response);
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 }
