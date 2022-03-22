@@ -1,0 +1,37 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    name: Deploy to package index
+    runs-on: ubuntu-20.04
+    env:
+      MAVEN_SNAPSHOTS_URL: ${{ secrets.OSSRH_SNAPSHOT_URL }}
+      MAVEN_RELEASES_URL: ${{ secrets.OSSRH_RELEASE_URL }}
+      MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: zulu
+          python-version: '8'
+
+      - name: Decode signing key ring
+        run: |
+          mkdir -p ~/.gradle
+          echo "${{secrets.SIGNING_SECRET_KEY_RING_FILE}}" > ~/.gradle/secring.gpg.b64
+          base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
+
+      - name: Clean build directory
+        run: ./gradlew clean
+
+      - name: Publish
+        run: ./gradlew publish -Psigning.keyId=${{secrets.SIGNING_KEY_ID}} -Psigning.password=${{secrets.SIGNING_KEY_PASSWORD}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/secring.gpg) --info --console plain

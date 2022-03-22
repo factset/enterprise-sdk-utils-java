@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        java-version: [8, 11, 17]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: zulu
+          java-version: '${{ matrix.java-version }}'
+
+      - name: Clean build directory
+        run: ./gradlew clean
+
+      - name: Build and test
+        run: ./gradlew build --info --console plain --refresh-dependencies
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # needed for super-linter
+
+      - name: Lint codebase
+        uses: github/super-linter@v4
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          DEFAULT_BRANCH: main
+          IGNORE_GITIGNORED_FILES: true
+          FILTER_REGEX_INCLUDE: .*src/.*, .*test/.*
+          FILTER_REGEX_EXCLUDE: .*package-info.java
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
