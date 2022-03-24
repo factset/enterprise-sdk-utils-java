@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-java@v2
         with:
           distribution: zulu
-          python-version: '8'
+          java-version: '8'
 
       - name: Decode signing key ring
         run: |
