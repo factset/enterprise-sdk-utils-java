@@ -163,6 +163,31 @@ If you're creating and managing your signing key pair yourself, see the required
 
 Please refer to the [contributing guide](CONTRIBUTING.md).
 
+# Logging
+
+All logger names start with "com.factset".
+
+This library uses [SLF4J](https://www.slf4j.org/) as logging interface,
+which requires a [binding](https://www.slf4j.org/manual.html#swapping) to your logging framework on the classpath.
+
+If no binding is found, SLF4J prints out the following warning and then defaults to a no-operation
+implementation, which discard all logs:
+```
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+```
+
+# Troubleshooting
+
+### "Unsuccessful token response: Failed to authenticate or parse the token"
+
+This error occurs when the request for an OAuth 2.0 Access Token got a non-200 response
+that could not be parsed as an [OAuth 2.0 Error Response](https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2).
+
+Additional logging can be enabled to troubleshoot the problem:
+The logger `com.factset.sdk.utils.authentication.ConfidentialClient` logs out the exact response in log level `TRACE`.
+
 # Copyright
 
 Copyright 2022 FactSet Research Systems Inc

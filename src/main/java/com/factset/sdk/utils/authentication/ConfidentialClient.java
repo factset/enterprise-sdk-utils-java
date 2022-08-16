@@ -17,6 +17,7 @@ import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.TokenResponse;
 import com.nimbusds.oauth2.sdk.auth.JWTAuthenticationClaimsSet;
+import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.ClientID;
@@ -170,7 +171,13 @@ public class ConfidentialClient implements OAuth2Client {
         try {
             final SignedJWT signedJwt = this.getSignedJwt();
             final TokenRequest tokenRequest = this.tokenRequestBuilder.signedJwt(signedJwt).build();
-            final HTTPResponse res = tokenRequest.toHTTPRequest().send();
+
+            final HTTPRequest httpRequest = tokenRequest.toHTTPRequest();
+            logTokenRequest(httpRequest);
+
+            final HTTPResponse res = httpRequest.send();
+            logTokenResponse(res);
+
             tokenRes = TokenResponse.parse(res);
         } catch (final IOException | ParseException e) {
             throw new AccessTokenException("Error attempting to get the access token", e);
@@ -193,9 +200,26 @@ public class ConfidentialClient implements OAuth2Client {
             tokenRes.toErrorResponse().getErrorObject().getDescription());
     }
 
-    protected SignedJWT getSignedJwt() throws SigningJwsException {
+    private void logTokenRequest(HTTPRequest req)
+    {
+        LOGGER.trace(
+            "Token Request: {} {} headers={} body={}",
+            req.getMethod(), req.getURL(), req.getHeaderMap(), req.getQuery()
+        );
+    }
+
+    private static void logTokenResponse(HTTPResponse res)
+    {
+        LOGGER.trace(
+            "Token Response: {} {} headers={} body={}",
+            res.getStatusCode(), res.getStatusMessage(), res.getHeaderMap(), res.getContent()
+        );
+    }
+
+    protected SignedJWT getSignedJwt() throws SigningJwsException
+    {
         LOGGER.debug("Signing the JWT...");
-      
+
         final RSAKey jwk = this.config.getJwk();
         final RSASSASigner signer;
         try {

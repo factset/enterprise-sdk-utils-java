@@ -1,0 +1,15 @@
+<configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="NOP" class="ch.qos.logback.core.helpers.NOPAppender" />
+
+  <root level="OFF">
+    <!-- replace with STDOUT to see logs locally -->
+    <appender-ref ref="NOP" />
+  </root>
+  <logger name="wiremock" level="ERROR"/>
+</configuration>
