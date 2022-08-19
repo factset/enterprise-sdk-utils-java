@@ -112,8 +112,8 @@ Each helper class in the module has the following features:
 
 * Accepts a `Configuration` instance that contains information about the OAuth 2.0 client, including the client ID and private key.
 * Performs authentication with FactSet's OAuth 2.0 authorization server and retrieves an access token.
-* Caches the access token for reuse and requests a new access token as needed when one expires.
-    *In order for this to work correctly, the helper class instance should be reused in the production environment.
+* Caches the access token for reuse and requests a new access token as needed when one expires. 
+  * In order for this to work correctly, the helper class instance should be reused in the production environment.
 
 #### Configuration
 
