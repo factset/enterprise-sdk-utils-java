@@ -41,7 +41,7 @@ jobs:
           fetch-depth: 0 # needed for super-linter
 
       - name: Lint codebase
-        uses: github/super-linter@v4
+        uses: github/super-linter@v5
         env:
           VALIDATE_ALL_CODEBASE: false
           DEFAULT_BRANCH: main
