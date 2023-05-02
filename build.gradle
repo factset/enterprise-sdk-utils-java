@@ -9,7 +9,7 @@ apply plugin: 'jacoco'
 apply plugin: 'maven-publish'
 
 group 'com.factset.sdk'
-version '1.0.0'
+version '1.0.1'
 
 dependencies {
     implementation 'org.slf4j:slf4j-api:1.7.36'
