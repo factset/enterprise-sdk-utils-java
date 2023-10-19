@@ -26,6 +26,10 @@ import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Proxy;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import javax.net.ssl.HttpsURLConnection;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -43,6 +47,7 @@ public class ConfidentialClient implements OAuth2Client {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfidentialClient.class);
     private final Configuration config;
     private final OIDCProviderMetadata providerMetadata;
+    private RequestOptions requestOptions;
     private TokenRequestBuilder tokenRequestBuilder;
     private long jwsIssuedAt;
     private long accessTokenExpireTime;
@@ -63,6 +68,24 @@ public class ConfidentialClient implements OAuth2Client {
         throws AuthServerMetadataContentException, AuthServerMetadataException,
         ConfigurationException {
         this(new Configuration(configPath));
+    }
+
+    /**
+     * Creates a new ConfidentialClient. When setting up the OAuth 2.0 client, this constructor reaches out to
+     * FactSet's well-known URI to retrieve metadata about its authorization server. This information along with
+     * information about the OAuth 2.0 client is stored and used whenever a new access token is fetched.
+     *
+     * @param configPath The path towards the file to pe parsed.
+     * @param requestOptions Object that can configure options like proxy and SSL settings
+     * @throws AuthServerMetadataContentException If Meta Issuer or Meta Token Endpoint is missing.
+     * @throws AuthServerMetadataException        If reading from URL is unsuccessful.
+     * @throws ConfigurationException             If JWK required keys are missing from the RSA or any keys with a value
+     *                                            that is null or an empty string.
+     */
+    public ConfidentialClient(final String configPath, RequestOptions requestOptions)
+            throws AuthServerMetadataContentException, AuthServerMetadataException,
+            ConfigurationException {
+        this(new Configuration(configPath), requestOptions);
     }
 
     /**
@@ -96,6 +119,52 @@ public class ConfidentialClient implements OAuth2Client {
 
         this.tokenRequestBuilder =
             new TokenRequestBuilder().uri(this.providerMetadata.getTokenEndpointURI());
+    }
+
+    /**
+     * Creates a new ConfidentialClient. When setting up the OAuth 2.0 client, this constructor reaches out to
+     * FactSet's well-known URI to retrieve metadata about its authorization server. This information along with
+     * information about the OAuth 2.0 client is stored and used whenever a new access token is fetched.
+     *
+     * @param config Configuration object.
+     * @param requestOptions Object that can configure options like proxy and SSL settings
+     * @throws AuthServerMetadataContentException If Meta Issuer or Meta Token Endpoint is missing.
+     * @throws AuthServerMetadataException        If reading from URL is unsuccessful.
+     * @throws NullPointerException               Unchecked exception, if config is null.
+     */
+    public ConfidentialClient(final Configuration config, RequestOptions requestOptions)
+            throws AuthServerMetadataContentException, AuthServerMetadataException {
+        Objects.requireNonNull(config, "Configuration object must not be null");
+        this.config = config;
+        LOGGER.debug("Finished initialising configuration");
+
+        LOGGER.debug("Attempting to get response from Well Known URI");
+        URL wellKnownURL = config.getWellKnownUrl();
+
+        try {
+            HttpURLConnection conn = (HttpURLConnection) wellKnownURL.openConnection(requestOptions.getProxy());
+            HttpsURLConnection sslConn = null;
+            if (conn instanceof HttpsURLConnection) {
+                sslConn = (HttpsURLConnection)conn;
+                sslConn.setHostnameVerifier(requestOptions.getHostnameVerifier());
+                sslConn.setSSLSocketFactory(requestOptions.getSslSocketFactory());
+            }
+
+            InputStream stream = conn.getInputStream();
+
+            final String providerInfo = IOUtils.readInputStreamToString(stream);
+            this.providerMetadata = OIDCProviderMetadata.parse(providerInfo);
+        } catch (final ParseException e) {
+            throw new AuthServerMetadataContentException("Content of WellKnownUri has errors: " +
+                    config.getWellKnownUrl().toString(), e);
+        } catch (final IOException e) {
+            throw new AuthServerMetadataException("Error retrieving contents from WellKnownUri: " +
+                    config.getWellKnownUrl().toString(), e);
+        }
+        LOGGER.debug("Response received from Well Known URI");
+
+        this.tokenRequestBuilder =
+                new TokenRequestBuilder().uri(this.providerMetadata.getTokenEndpointURI());
     }
 
     /**
