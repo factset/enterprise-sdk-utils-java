@@ -195,9 +195,8 @@ public class ConfidentialClient implements OAuth2Client {
             if (this.requestOptions == null) stream = wellKnownURL.openStream();
             else {
                 HttpURLConnection conn = (HttpURLConnection) wellKnownURL.openConnection(this.requestOptions.getProxy());
-                HttpsURLConnection sslConn = null;
                 if (conn instanceof HttpsURLConnection) {
-                    sslConn = (HttpsURLConnection) conn;
+                    HttpsURLConnection sslConn = (HttpsURLConnection) conn;
                     sslConn.setHostnameVerifier(this.requestOptions.getHostnameVerifier());
                     sslConn.setSSLSocketFactory(this.requestOptions.getSslSocketFactory());
                 }
