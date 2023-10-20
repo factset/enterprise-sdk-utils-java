@@ -26,7 +26,6 @@ import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.Proxy;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import javax.net.ssl.HttpsURLConnection;
@@ -46,7 +45,7 @@ public class ConfidentialClient implements OAuth2Client {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfidentialClient.class);
     private final Configuration config;
-    private final OIDCProviderMetadata providerMetadata;
+    private OIDCProviderMetadata providerMetadata;
     private RequestOptions requestOptions;
     private TokenRequestBuilder tokenRequestBuilder;
     private long jwsIssuedAt;
@@ -104,21 +103,7 @@ public class ConfidentialClient implements OAuth2Client {
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
 
-        LOGGER.debug("Attempting to get response from Well Known URI");
-        try (InputStream stream = config.getWellKnownUrl().openStream()) {
-            final String providerInfo = IOUtils.readInputStreamToString(stream);
-            this.providerMetadata = OIDCProviderMetadata.parse(providerInfo);
-        } catch (final ParseException e) {
-            throw new AuthServerMetadataContentException("Content of WellKnownUri has errors: " +
-                config.getWellKnownUrl().toString(), e);
-        } catch (final IOException e) {
-            throw new AuthServerMetadataException("Error retrieving contents from WellKnownUri: " +
-                config.getWellKnownUrl().toString(), e);
-        }
-        LOGGER.debug("Response received from Well Known URI");
-
-        this.tokenRequestBuilder =
-            new TokenRequestBuilder().uri(this.providerMetadata.getTokenEndpointURI());
+        this.requestProviderMetadata(config, null);
     }
 
     /**
@@ -138,33 +123,7 @@ public class ConfidentialClient implements OAuth2Client {
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
 
-        LOGGER.debug("Attempting to get response from Well Known URI");
-        URL wellKnownURL = config.getWellKnownUrl();
-
-        try {
-            HttpURLConnection conn = (HttpURLConnection) wellKnownURL.openConnection(requestOptions.getProxy());
-            HttpsURLConnection sslConn = null;
-            if (conn instanceof HttpsURLConnection) {
-                sslConn = (HttpsURLConnection)conn;
-                sslConn.setHostnameVerifier(requestOptions.getHostnameVerifier());
-                sslConn.setSSLSocketFactory(requestOptions.getSslSocketFactory());
-            }
-
-            InputStream stream = conn.getInputStream();
-
-            final String providerInfo = IOUtils.readInputStreamToString(stream);
-            this.providerMetadata = OIDCProviderMetadata.parse(providerInfo);
-        } catch (final ParseException e) {
-            throw new AuthServerMetadataContentException("Content of WellKnownUri has errors: " +
-                    config.getWellKnownUrl().toString(), e);
-        } catch (final IOException e) {
-            throw new AuthServerMetadataException("Error retrieving contents from WellKnownUri: " +
-                    config.getWellKnownUrl().toString(), e);
-        }
-        LOGGER.debug("Response received from Well Known URI");
-
-        this.tokenRequestBuilder =
-                new TokenRequestBuilder().uri(this.providerMetadata.getTokenEndpointURI());
+        this.requestProviderMetadata(config, requestOptions);
     }
 
     /**
@@ -223,6 +182,40 @@ public class ConfidentialClient implements OAuth2Client {
         }
 
         return this.fetchAccessToken();
+    }
+
+    private void requestProviderMetadata(Configuration config, RequestOptions requestOptions) throws AuthServerMetadataContentException, AuthServerMetadataException {
+        LOGGER.debug("Attempting to get response from Well Known URI");
+        URL wellKnownURL = config.getWellKnownUrl();
+        InputStream stream;
+
+        try {
+            if (requestOptions == null) stream = wellKnownURL.openStream();
+            else {
+                HttpURLConnection conn = (HttpURLConnection) wellKnownURL.openConnection(requestOptions.getProxy());
+                HttpsURLConnection sslConn = null;
+                if (conn instanceof HttpsURLConnection) {
+                    sslConn = (HttpsURLConnection) conn;
+                    sslConn.setHostnameVerifier(requestOptions.getHostnameVerifier());
+                    sslConn.setSSLSocketFactory(requestOptions.getSslSocketFactory());
+                }
+
+                stream = conn.getInputStream();
+            }
+
+            final String providerInfo = IOUtils.readInputStreamToString(stream);
+            this.providerMetadata = OIDCProviderMetadata.parse(providerInfo);
+        } catch (final ParseException e) {
+            throw new AuthServerMetadataContentException("Content of WellKnownUri has errors: " +
+                    config.getWellKnownUrl().toString(), e);
+        } catch (final IOException e) {
+            throw new AuthServerMetadataException("Error retrieving contents from WellKnownUri: " +
+                    config.getWellKnownUrl().toString(), e);
+        }
+        LOGGER.debug("Response received from Well Known URI");
+
+        this.tokenRequestBuilder =
+                new TokenRequestBuilder().uri(this.providerMetadata.getTokenEndpointURI());
     }
 
     private boolean isCachedTokenValid() {
