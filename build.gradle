@@ -17,7 +17,6 @@ dependencies {
     implementation 'org.json:json:20231013'
     implementation 'org.apache.httpcomponents:httpclient:4.5.14'
     implementation 'com.nimbusds:oauth2-oidc-sdk:10.14.2'
-    implementation 'org.projectlombok:lombok:1.18.28'
 
     testImplementation 'org.mockito:mockito-core:4.9.0'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
@@ -27,6 +26,11 @@ dependencies {
     testImplementation "org.hamcrest:hamcrest:2.2"
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
     testRuntimeOnly 'ch.qos.logback:logback-core:1.2.11'
+
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    testCompileOnly 'org.projectlombok:lombok:1.18.30'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
 }
 
 task sourcesJar(type: Jar) {
