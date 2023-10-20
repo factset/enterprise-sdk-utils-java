@@ -9,11 +9,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -327,7 +325,9 @@ class ConfidentialClientTest {
         final File file = new File(String.valueOf(Paths.get(String.valueOf(pathToResources), stringFile)));
 
         URL mockedUrl = mock(URL.class);
-        when(mockedUrl.openStream()).thenReturn(new FileInputStream(file));
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        when(mockedUrl.openConnection(any(Proxy.class))).thenReturn(mockedConn);
+        when(mockedConn.getInputStream()).thenReturn(Files.newInputStream(file.toPath()));
 
         return mockedUrl;
     }
@@ -343,7 +343,7 @@ class ConfidentialClientTest {
 
     private static Configuration getConfigSpyThrowsIOException(String configFile) throws IOException, ConfigurationException {
         URL mockedUrl = mock(URL.class);
-        when(mockedUrl.openStream()).thenThrow(IOException.class);
+        when(mockedUrl.openConnection(any(Proxy.class))).thenThrow(IOException.class);
         Configuration configuration = new Configuration(String.valueOf(Paths.get(pathToResources.toString(), configFile)));
         Configuration configurationSpy = spy(configuration);
         when(configurationSpy.getWellKnownUrl()).thenReturn(mockedUrl).thenCallRealMethod();

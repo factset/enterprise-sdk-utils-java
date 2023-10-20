@@ -102,7 +102,7 @@ public class ConfidentialClient implements OAuth2Client {
         Objects.requireNonNull(config, "Configuration object must not be null");
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
-        this.requestOptions = null;
+        this.requestOptions = new RequestOptions.RequestOptionsBuilder().build();
 
         this.requestProviderMetadata();
     }
@@ -192,17 +192,14 @@ public class ConfidentialClient implements OAuth2Client {
         InputStream stream;
 
         try {
-            if (this.requestOptions == null) stream = wellKnownURL.openStream();
-            else {
-                HttpURLConnection conn = (HttpURLConnection) wellKnownURL.openConnection(this.requestOptions.getProxy());
-                if (conn instanceof HttpsURLConnection) {
-                    HttpsURLConnection sslConn = (HttpsURLConnection) conn;
-                    sslConn.setHostnameVerifier(this.requestOptions.getHostnameVerifier());
-                    sslConn.setSSLSocketFactory(this.requestOptions.getSslSocketFactory());
-                }
-
-                stream = conn.getInputStream();
+            HttpURLConnection conn = (HttpURLConnection) wellKnownURL.openConnection(this.requestOptions.getProxy());
+            if (conn instanceof HttpsURLConnection) {
+                HttpsURLConnection sslConn = (HttpsURLConnection) conn;
+                sslConn.setHostnameVerifier(this.requestOptions.getHostnameVerifier());
+                sslConn.setSSLSocketFactory(this.requestOptions.getSslSocketFactory());
             }
+
+            stream = conn.getInputStream();
 
             final String providerInfo = IOUtils.readInputStreamToString(stream);
             this.providerMetadata = OIDCProviderMetadata.parse(providerInfo);
@@ -236,11 +233,10 @@ public class ConfidentialClient implements OAuth2Client {
             final TokenRequest tokenRequest = this.tokenRequestBuilder.signedJwt(signedJwt).build();
 
             final HTTPRequest httpRequest = tokenRequest.toHTTPRequest();
-            if (requestOptions != null) {
-                httpRequest.setProxy(this.requestOptions.getProxy());
-                httpRequest.setHostnameVerifier(this.requestOptions.getHostnameVerifier());
-                httpRequest.setSSLSocketFactory(this.requestOptions.getSslSocketFactory());
-            }
+            httpRequest.setProxy(this.requestOptions.getProxy());
+            httpRequest.setHostnameVerifier(this.requestOptions.getHostnameVerifier());
+            httpRequest.setSSLSocketFactory(this.requestOptions.getSslSocketFactory());
+
             logTokenRequest(httpRequest);
 
             final HTTPResponse res = httpRequest.send();
