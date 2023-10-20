@@ -102,8 +102,9 @@ public class ConfidentialClient implements OAuth2Client {
         Objects.requireNonNull(config, "Configuration object must not be null");
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
+        this.requestOptions = null;
 
-        this.requestProviderMetadata(config, null);
+        this.requestProviderMetadata();
     }
 
     /**
@@ -122,8 +123,9 @@ public class ConfidentialClient implements OAuth2Client {
         Objects.requireNonNull(config, "Configuration object must not be null");
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
+        this.requestOptions = requestOptions;
 
-        this.requestProviderMetadata(config, requestOptions);
+        this.requestProviderMetadata();
     }
 
     /**
@@ -184,20 +186,20 @@ public class ConfidentialClient implements OAuth2Client {
         return this.fetchAccessToken();
     }
 
-    private void requestProviderMetadata(Configuration config, RequestOptions requestOptions) throws AuthServerMetadataContentException, AuthServerMetadataException {
+    private void requestProviderMetadata() throws AuthServerMetadataContentException, AuthServerMetadataException {
         LOGGER.debug("Attempting to get response from Well Known URI");
-        URL wellKnownURL = config.getWellKnownUrl();
+        URL wellKnownURL = this.config.getWellKnownUrl();
         InputStream stream;
 
         try {
-            if (requestOptions == null) stream = wellKnownURL.openStream();
+            if (this.requestOptions == null) stream = wellKnownURL.openStream();
             else {
-                HttpURLConnection conn = (HttpURLConnection) wellKnownURL.openConnection(requestOptions.getProxy());
+                HttpURLConnection conn = (HttpURLConnection) wellKnownURL.openConnection(this.requestOptions.getProxy());
                 HttpsURLConnection sslConn = null;
                 if (conn instanceof HttpsURLConnection) {
                     sslConn = (HttpsURLConnection) conn;
-                    sslConn.setHostnameVerifier(requestOptions.getHostnameVerifier());
-                    sslConn.setSSLSocketFactory(requestOptions.getSslSocketFactory());
+                    sslConn.setHostnameVerifier(this.requestOptions.getHostnameVerifier());
+                    sslConn.setSSLSocketFactory(this.requestOptions.getSslSocketFactory());
                 }
 
                 stream = conn.getInputStream();
@@ -207,10 +209,10 @@ public class ConfidentialClient implements OAuth2Client {
             this.providerMetadata = OIDCProviderMetadata.parse(providerInfo);
         } catch (final ParseException e) {
             throw new AuthServerMetadataContentException("Content of WellKnownUri has errors: " +
-                    config.getWellKnownUrl().toString(), e);
+                    this.config.getWellKnownUrl().toString(), e);
         } catch (final IOException e) {
             throw new AuthServerMetadataException("Error retrieving contents from WellKnownUri: " +
-                    config.getWellKnownUrl().toString(), e);
+                    this.config.getWellKnownUrl().toString(), e);
         }
         LOGGER.debug("Response received from Well Known URI");
 
