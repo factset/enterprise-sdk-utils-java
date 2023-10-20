@@ -46,7 +46,7 @@ public class ConfidentialClient implements OAuth2Client {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfidentialClient.class);
     private final Configuration config;
     private OIDCProviderMetadata providerMetadata;
-    private RequestOptions requestOptions;
+    private final RequestOptions requestOptions;
     private TokenRequestBuilder tokenRequestBuilder;
     private long jwsIssuedAt;
     private long accessTokenExpireTime;
@@ -236,6 +236,11 @@ public class ConfidentialClient implements OAuth2Client {
             final TokenRequest tokenRequest = this.tokenRequestBuilder.signedJwt(signedJwt).build();
 
             final HTTPRequest httpRequest = tokenRequest.toHTTPRequest();
+            if (requestOptions != null) {
+                httpRequest.setProxy(this.requestOptions.getProxy());
+                httpRequest.setHostnameVerifier(this.requestOptions.getHostnameVerifier());
+                httpRequest.setSSLSocketFactory(this.requestOptions.getSslSocketFactory());
+            }
             logTokenRequest(httpRequest);
 
             final HTTPResponse res = httpRequest.send();
