@@ -18,7 +18,7 @@ Add the below dependency to the project's POM:
 <dependency>
     <groupId>com.factset.sdk</groupId>
     <artifactId>utils</artifactId>
-    <version>1.0.1</version>
+    <version>1.1.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -32,9 +32,48 @@ repositories {
 }
 
 dependencies {
-    implementation "com.factset.sdk:utils:1.0.1"
+    implementation "com.factset.sdk:utils:1.1.0-SNAPSHOT"
 }
 ```
+
+### Snapshot Releases
+
+To be able to install snapshot releases of the sdk an additional repository must be added to the maven or gradle config.
+
+#### Maven Snapshot Repository
+
+```xml
+<repositories>
+    <repository>
+        <id>sonatype</id>
+        <name>sonatype-snapshot</name>
+        <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+        <releases>
+            <enabled>false</enabled>
+        </releases>
+    </repository>
+</repositories>
+```
+
+#### Gradle Snapshot Repository
+
+```groovy
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://oss.sonatype.org/content/repositories/snapshots/")
+        mavenContent {
+            snapshotsOnly()
+        }
+    }
+}
+```
+
+Snapshot releases are cached by gradle for some time, for details see: [Gradle Dynamic Versions](https://docs.gradle.org/current/userguide/dynamic_versions.html#sub:declaring_dependency_with_changing_version)
+
 
 ## Usage
 
