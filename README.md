@@ -139,6 +139,18 @@ public class Console {
 }
 ```
 
+### Configure a Proxy
+
+The Confidential Client accepts an additional optional parameter called `RequestOptions`. This can be created to specify a proxy for the client to use. Below is an example of how to do this:
+
+```java
+Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", 8080));
+RequestOptions requestOptions = new RequestOptions.RequestOptionsBuilder().proxy(proxy).build();
+
+// Pass this into client
+ConfidentialClient confidentialClient = new ConfidentialClient("./path/to/config.json", requestOptions);
+```
+
 ## Modules
 
 Information about the various utility modules contained in this library can be found below.
