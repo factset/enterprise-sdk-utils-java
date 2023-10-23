@@ -167,6 +167,25 @@ public class ConfidentialClient implements OAuth2Client {
     }
 
     /**
+     * Creates a new ConfidentialClient. When setting up the OAuth 2.0 client, this constructor reaches out to
+     * FactSet's well-known URI to retrieve metadata about its authorization server. This information along with
+     * information about the OAuth 2.0 client is stored and used whenever a new access token is fetched.
+     *
+     * @param config        Configuration object.
+     * @param tokReqBuilder The TokenRequest builder, used to build custom TokenRequest instances.
+     * @param requestOptions Object that can configure options like proxy and SSL settings
+     * @throws AuthServerMetadataContentException If Meta Issuer or Meta Token Endpoint is missing.
+     * @throws AuthServerMetadataException        If reading from URL is unsuccessful.
+     * @throws NullPointerException               Unchecked exception, if config is null.
+     */
+    protected ConfidentialClient(final Configuration config, final TokenRequestBuilder tokReqBuilder, RequestOptions requestOptions)
+            throws AuthServerMetadataContentException,
+            AuthServerMetadataException {
+        this(config, requestOptions);
+        this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
+    }
+
+    /**
      * Returns an access token that can be used for authentication. If the cache contains a valid access token,
      * it's returned. Otherwise, a new access token is retrieved from FactSet's authorization server. The access
      * token should be used immediately and not stored to avoid any issues with token expiry. The access token is
