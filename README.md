@@ -153,16 +153,24 @@ ConfidentialClient confidentialClient = new ConfidentialClient("./path/to/config
 
 ### Custom SSL Certificate
 
-If you have proxies or firewalls which are using custom TLS certificates, you are able to [modify the Java Runtime Environment keystore](https://docs.plm.automation.siemens.com/content/polarion/20/help/en_US/polarion_windows_installation/manually_updating_third_party_software/import_a_certificate_to_the_java_keystore.html) so that the request library is able to verify the validity of that certificate.
+If you are making requests to a server which is using custom TLS certificates, you are able to verify the validity of the certificate via the `RequestOptions` configuration.
 
-It is also possible to have a custom SSL configuration with the code example given below.
+#### Hostname Verifier
+
+You can pass in a custom hostname verifier to modify the details of the verification with a custom implementation. Otherwise, the `RequestOptions` will use the default one which checks the hostname in the certificate, located in the JRE keystore, and compares it to the hostname of the URL that is being hit by the client.
+
+#### SSL Socket Factory
+
+You can pass in a custom SSL Socket Factory and modify the `SSLContext` for a specific user use case. Otherwise, the `RequestOptions` uses a default `SSLSocketFactory` as described [here](https://docs.oracle.com/javase/7/docs/api/javax/net/ssl/HttpsURLConnection.html#getDefaultHostnameVerifier()).
+
+#### Example
 
 ```java
 SSLContext sslContext = SSLContext.getInstance("SSL");
-sslContext.init(...);
+sslContext.init(...); // Configure this based on application's needs
 
 SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
-HostnameVerifier hostnameVerifier = ((hostname, session) -> ...);
+HostnameVerifier hostnameVerifier = ((hostname, session) -> ...); // Configure this based on application's needs
 
 RequestOptions reqOpt = RequestOptions.builder()
         .hostnameVerifier(hostnameVerifier)
