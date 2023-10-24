@@ -166,7 +166,7 @@ You can pass in a custom SSL Socket Factory and modify the `SSLContext` for a sp
 #### Example
 
 ```java
-SSLContext sslContext = SSLContext.getInstance("SSL");
+SSLContext sslContext = SSLContext.getInstance("TLS");
 sslContext.init(...); // Configure this based on application's needs
 
 SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
