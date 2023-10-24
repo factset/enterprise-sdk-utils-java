@@ -145,7 +145,7 @@ The Confidential Client accepts an additional optional parameter called `Request
 
 ```java
 Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", 8080));
-RequestOptions requestOptions = new RequestOptions.RequestOptionsBuilder().proxy(proxy).build();
+RequestOptions requestOptions = RequestOptions.builder().proxy(proxy).build();
 
 // Pass this into client
 ConfidentialClient confidentialClient = new ConfidentialClient("./path/to/config.json", requestOptions);
