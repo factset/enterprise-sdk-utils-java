@@ -99,12 +99,7 @@ public class ConfidentialClient implements OAuth2Client {
      */
     public ConfidentialClient(final Configuration config)
         throws AuthServerMetadataContentException, AuthServerMetadataException {
-        Objects.requireNonNull(config, "Configuration object must not be null");
-        this.config = config;
-        LOGGER.debug("Finished initialising configuration");
-        this.requestOptions = new RequestOptions.RequestOptionsBuilder().build();
-
-        this.requestProviderMetadata();
+        this(config, RequestOptions.builder().build());
     }
 
     /**
@@ -123,7 +118,7 @@ public class ConfidentialClient implements OAuth2Client {
         Objects.requireNonNull(config, "Configuration object must not be null");
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
-        this.requestOptions = requestOptions;
+        this.requestOptions = requestOptions == null ? RequestOptions.builder().build() : requestOptions;
 
         this.requestProviderMetadata();
     }

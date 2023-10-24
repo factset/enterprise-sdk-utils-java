@@ -200,6 +200,19 @@ class ConfidentialClientTest {
     }
 
     @Test
+    void confidentialClientValidConfigInitialisesWithRequestOptionsAsNull() throws Exception {
+        HttpsURLConnection mockedConn = mock(HttpsURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration config = getConfigSpyMockedResponse(mockedURL, "validConfig.txt");
+        RequestOptions reqOpts = null;
+        new ConfidentialClient(config, reqOpts);
+
+        verify(mockedURL).openConnection(Proxy.NO_PROXY);
+        verify(mockedConn).setHostnameVerifier(HttpsURLConnection.getDefaultHostnameVerifier());
+        verify(mockedConn).setSSLSocketFactory(HttpsURLConnection.getDefaultSSLSocketFactory());
+    }
+
+    @Test
     void getAccessTokenCallingWithFailedSigningRaisesSigningJwsException() throws Exception {
         try {
             ConfidentialClient confidentialClient = new ConfidentialClient(String.valueOf(Paths.get(
