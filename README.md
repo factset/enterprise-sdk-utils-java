@@ -151,6 +151,25 @@ RequestOptions requestOptions = RequestOptions.builder().proxy(proxy).build();
 ConfidentialClient confidentialClient = new ConfidentialClient("./path/to/config.json", requestOptions);
 ```
 
+### Custom SSL Certificate
+
+If you have proxies or firewalls which are using custom TLS certificates, you are able to [modify the Java Runtime Environment keystore](https://docs.plm.automation.siemens.com/content/polarion/20/help/en_US/polarion_windows_installation/manually_updating_third_party_software/import_a_certificate_to_the_java_keystore.html) so that the request library is able to verify the validity of that certificate.
+
+It is also possible to have a custom SSL configuration with the code example given below.
+
+```java
+SSLContext sslContext = SSLContext.getInstance("SSL");
+sslContext.init(...);
+
+SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
+HostnameVerifier hostnameVerifier = ((hostname, session) -> ...);
+
+RequestOptions reqOpt = RequestOptions.builder()
+        .hostnameVerifier(hostnameVerifier)
+        .sslSocketFactory(sslSocketFactory)
+        .build();
+```
+
 ## Modules
 
 Information about the various utility modules contained in this library can be found below.
