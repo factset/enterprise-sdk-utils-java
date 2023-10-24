@@ -13,8 +13,10 @@ import java.net.Proxy;
 public class RequestOptions {
     @Builder.Default
     Proxy proxy = Proxy.NO_PROXY;
+
     @Builder.Default
     HostnameVerifier hostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();
+
     @Builder.Default
     SSLSocketFactory sslSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
 }
