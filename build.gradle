@@ -15,7 +15,6 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:1.7.36'
     implementation 'com.nimbusds:nimbus-jose-jwt:9.37'
     implementation 'org.json:json:20231013'
-    implementation 'org.apache.httpcomponents:httpclient:4.5.14'
     implementation 'com.nimbusds:oauth2-oidc-sdk:10.14.2'
 
     testImplementation 'org.mockito:mockito-core:4.9.0'
