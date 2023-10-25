@@ -18,7 +18,7 @@ Add the below dependency to the project's POM:
 <dependency>
     <groupId>com.factset.sdk</groupId>
     <artifactId>utils</artifactId>
-    <version>1.0.1</version>
+    <version>1.1.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -32,9 +32,48 @@ repositories {
 }
 
 dependencies {
-    implementation "com.factset.sdk:utils:1.0.1"
+    implementation "com.factset.sdk:utils:1.1.0-SNAPSHOT"
 }
 ```
+
+### Snapshot Releases
+
+To be able to install snapshot releases of the sdk an additional repository must be added to the maven or gradle config.
+
+#### Maven Snapshot Repository
+
+```xml
+<repositories>
+    <repository>
+        <id>sonatype</id>
+        <name>sonatype-snapshot</name>
+        <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+        <releases>
+            <enabled>false</enabled>
+        </releases>
+    </repository>
+</repositories>
+```
+
+#### Gradle Snapshot Repository
+
+```groovy
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://oss.sonatype.org/content/repositories/snapshots/")
+        mavenContent {
+            snapshotsOnly()
+        }
+    }
+}
+```
+
+Snapshot releases are cached by gradle for some time, for details see: [Gradle Dynamic Versions](https://docs.gradle.org/current/userguide/dynamic_versions.html#sub:declaring_dependency_with_changing_version)
+
 
 ## Usage
 
@@ -98,6 +137,45 @@ public class Console {
         }
     }
 }
+```
+
+### Configure a Proxy
+
+The Confidential Client accepts an additional optional parameter called `RequestOptions`. This can be created to specify a proxy for the client to use. Below is an example of how to do this:
+
+```java
+Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", 8080));
+RequestOptions requestOptions = RequestOptions.builder().proxy(proxy).build();
+
+// Pass this into client
+ConfidentialClient confidentialClient = new ConfidentialClient("./path/to/config.json", requestOptions);
+```
+
+### Custom SSL Certificate
+
+If you are making requests to a server which is using custom TLS certificates, you are able to verify the validity of the certificate via the `RequestOptions` configuration.
+
+#### Hostname Verifier
+
+You can pass in a custom hostname verifier to modify the details of the verification with a custom implementation. Otherwise, the `RequestOptions` will use the default one which checks the hostname in the certificate, located in the JRE keystore, and compares it to the hostname of the URL that is being hit by the client.
+
+#### SSL Socket Factory
+
+You can pass in a custom SSL Socket Factory and modify the `SSLContext` for a specific user use case. Otherwise, the `RequestOptions` uses a default `SSLSocketFactory` as described [here](https://docs.oracle.com/javase/7/docs/api/javax/net/ssl/HttpsURLConnection.html#getDefaultHostnameVerifier()).
+
+#### Example
+
+```java
+SSLContext sslContext = SSLContext.getInstance("TLS");
+sslContext.init(...); // Configure this based on application's needs
+
+SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
+HostnameVerifier hostnameVerifier = ((hostname, session) -> ...); // Configure this based on application's needs
+
+RequestOptions reqOpt = RequestOptions.builder()
+        .hostnameVerifier(hostnameVerifier)
+        .sslSocketFactory(sslSocketFactory)
+        .build();
 ```
 
 ## Modules

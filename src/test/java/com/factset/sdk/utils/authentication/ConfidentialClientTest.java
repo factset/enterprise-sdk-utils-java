@@ -8,12 +8,11 @@ import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import javax.net.ssl.HttpsURLConnection;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -151,9 +150,11 @@ class ConfidentialClientTest {
     }
 
     @Test
-    void confidentialClientValidPathValidConfigMissingIssuerAndTokenEndpointThrowsAuthServerMetadataContentException() {
+    void confidentialClientValidPathValidConfigMissingIssuerAndTokenEndpointThrowsAuthServerMetadataContentException() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("emptyJson.txt", mockedConn);
         assertThrows(AuthServerMetadataContentException.class,
-                () -> new ConfidentialClient(getConfigSpyMockedResponse("emptyJson.txt", "validConfig.txt")));
+                () -> new ConfidentialClient(getConfigSpyMockedResponse(mockedURL, "validConfig.txt")));
     }
 
     @Test
@@ -165,7 +166,8 @@ class ConfidentialClientTest {
                 "https://test.test.com/.test-test/test-test");
 
             // If this confidential client is instantiated without exceptions, that results in a passing test.
-            URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt");
+            HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+            URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
             Configuration configurationSpy = spy(configuration);
             when(configurationSpy.getWellKnownUrl()).thenReturn(mockedURL);
             new ConfidentialClient(configurationSpy);
@@ -176,8 +178,38 @@ class ConfidentialClientTest {
     void confidentialClientValidConfigInitialisesWithNoException() {
         assertDoesNotThrow(() -> {
             // If this confidential client is instantiated without exceptions, that results in a passing test.
-            new ConfidentialClient(getConfigSpyMockedResponse("exampleResponseWellKnownUri.txt", "validConfig.txt"));
+            HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+            URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+            new ConfidentialClient(getConfigSpyMockedResponse(mockedURL, "validConfig.txt"));
         });
+    }
+
+    @Test
+    void confidentialClientValidConfigInitialisesWithRequestOptions() throws Exception {
+        Proxy mockProxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", 8080));
+        RequestOptions reqOptions = RequestOptions.builder().proxy(mockProxy).build();
+
+        HttpsURLConnection mockedConn = mock(HttpsURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration config = getConfigSpyMockedResponse(mockedURL, "validConfig.txt");
+        new ConfidentialClient(config, reqOptions);
+
+        verify(mockedURL).openConnection(mockProxy);
+        verify(mockedConn).setHostnameVerifier(reqOptions.getHostnameVerifier());
+        verify(mockedConn).setSSLSocketFactory(reqOptions.getSslSocketFactory());
+    }
+
+    @Test
+    void confidentialClientValidConfigInitialisesWithRequestOptionsAsNull() throws Exception {
+        HttpsURLConnection mockedConn = mock(HttpsURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration config = getConfigSpyMockedResponse(mockedURL, "validConfig.txt");
+        RequestOptions reqOpts = null;
+        new ConfidentialClient(config, reqOpts);
+
+        verify(mockedURL).openConnection(Proxy.NO_PROXY);
+        verify(mockedConn).setHostnameVerifier(HttpsURLConnection.getDefaultHostnameVerifier());
+        verify(mockedConn).setSSLSocketFactory(HttpsURLConnection.getDefaultSSLSocketFactory());
     }
 
     @Test
@@ -197,14 +229,18 @@ class ConfidentialClientTest {
     @Test
     void getAccessTokenCallingWithErroneousResponseRaisesAccessTokenException() throws Exception {
         try {
+            HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+            URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
             Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
-                    "exampleResponseWellKnownUri.txt", "validConfig.txt"
+                    mockedURL, "validConfig.txt"
             );
 
+            HTTPRequest mockedRequest = mock(HTTPRequest.class);
             TokenRequestBuilder tokenRequestBuilderSpy = ConfidentialClientTest.createTokenRequestBuilderSpy(
                     HTTPResponse.SC_UNAUTHORIZED,
                     "{\"error_description\":\"Unauthorized access.\",\"error\":\"invalid_request\"}",
-                    false
+                    false,
+                    mockedRequest
             );
 
             ConfidentialClient confidentialClientSpy = spy(new ConfidentialClient(configurationMock, tokenRequestBuilderSpy));
@@ -217,14 +253,18 @@ class ConfidentialClientTest {
 
     @Test
     void getAccessTokenCalledForTheFirstTimeReturnsANewAccessToken() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
         Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
-                "exampleResponseWellKnownUri.txt", "validConfig.txt"
+                mockedURL, "validConfig.txt"
         );
 
+        HTTPRequest mockedRequest = mock(HTTPRequest.class);
         TokenRequestBuilder tokenRequestBuilderSpy = ConfidentialClientTest.createTokenRequestBuilderSpy(
                 HTTPResponse.SC_OK,
                 "{\"access_token\":\"test token\",\"token_type\":\"Bearer\",\"expires_in\":899}",
-                true
+                true,
+                mockedRequest
         );
 
         ConfidentialClient confidentialClientSpy = spy(new ConfidentialClient(configurationMock, tokenRequestBuilderSpy));
@@ -234,9 +274,37 @@ class ConfidentialClientTest {
     }
 
     @Test
-    void getAccessTokenCalledTwiceBeforeExpirationReturnsSameAccessToken() throws Exception {
+    void getAccessTokenCalledWithRequestOptionsSetsProxyAndSSLSettings() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
         Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
-                "exampleResponseWellKnownUri.txt", "validConfig.txt"
+                mockedURL, "validConfig.txt"
+        );
+
+        HTTPRequest mockedRequest = mock(HTTPRequest.class);
+        TokenRequestBuilder tokenRequestBuilderSpy = ConfidentialClientTest.createTokenRequestBuilderSpy(
+                HTTPResponse.SC_OK,
+                "{\"access_token\":\"test token\",\"token_type\":\"Bearer\",\"expires_in\":899}",
+                true,
+                mockedRequest
+        );
+
+        Proxy mockProxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", 8080));
+        RequestOptions reqOptions = RequestOptions.builder().proxy(mockProxy).build();
+        ConfidentialClient confidentialClientSpy = spy(new ConfidentialClient(configurationMock, tokenRequestBuilderSpy, reqOptions));
+        confidentialClientSpy.getAccessToken();
+
+        verify(mockedRequest).setProxy(mockProxy);
+        verify(mockedRequest).setHostnameVerifier(reqOptions.getHostnameVerifier());
+        verify(mockedRequest).setSSLSocketFactory(reqOptions.getSslSocketFactory());
+    }
+
+    @Test
+    void getAccessTokenCalledTwiceBeforeExpirationReturnsSameAccessToken() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
+                mockedURL, "validConfig.txt"
         );
 
         HTTPResponse res = new HTTPResponse(HTTPResponse.SC_OK);
@@ -267,8 +335,10 @@ class ConfidentialClientTest {
 
     @Test
     void getAccessTokenCallingBeforeAndAfterExpirationReturnsDifferentAccessToken() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
         Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
-                "exampleResponseWellKnownUri.txt", "validConfig.txt"
+                mockedURL, "validConfig.txt"
         );
 
         HTTPResponse res1 = new HTTPResponse(HTTPResponse.SC_OK);
@@ -304,14 +374,18 @@ class ConfidentialClientTest {
     @Test
     void getAccessTokenCallingWithSendErrorRaisesAccessTokenException() throws Exception {
         try {
+            HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+            URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
             Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
-                    "exampleResponseWellKnownUri.txt", "validConfig.txt"
+                    mockedURL, "validConfig.txt"
             );
 
+            HTTPRequest mockedRequest = mock(HTTPRequest.class);
             TokenRequestBuilder tokenRequestBuilderSpy = ConfidentialClientTest.createTokenRequestBuilderSpy(
                     HTTPResponse.SC_OK,
                     "{\"error_description\":\"Invalid request.\",\"error\":\"invalid_request\"}",
-                    false
+                    false,
+                    mockedRequest
             );
 
             ConfidentialClient confidentialClientSpy = spy(new ConfidentialClient(configurationMock, tokenRequestBuilderSpy));
@@ -323,17 +397,17 @@ class ConfidentialClientTest {
         }
     }
 
-    private static URL getUrlMockResponse(String stringFile) throws IOException {
+    private static URL getUrlMockResponse(String stringFile, HttpURLConnection mockedConn) throws IOException {
         final File file = new File(String.valueOf(Paths.get(String.valueOf(pathToResources), stringFile)));
 
         URL mockedUrl = mock(URL.class);
-        when(mockedUrl.openStream()).thenReturn(new FileInputStream(file));
+        when(mockedUrl.openConnection(any(Proxy.class))).thenReturn(mockedConn);
+        when(mockedConn.getInputStream()).thenReturn(Files.newInputStream(file.toPath()));
 
         return mockedUrl;
     }
 
-    private static Configuration getConfigSpyMockedResponse(String urlResponse, String configFile) throws IOException, ConfigurationException {
-        URL mockedURL = getUrlMockResponse(urlResponse);
+    private static Configuration getConfigSpyMockedResponse(URL mockedURL, String configFile) throws ConfigurationException {
         Configuration configuration = new Configuration(String.valueOf(Paths.get(pathToResources.toString(), configFile)));
         Configuration configurationSpy = spy(configuration);
         when(configurationSpy.getWellKnownUrl()).thenReturn(mockedURL);
@@ -343,7 +417,7 @@ class ConfidentialClientTest {
 
     private static Configuration getConfigSpyThrowsIOException(String configFile) throws IOException, ConfigurationException {
         URL mockedUrl = mock(URL.class);
-        when(mockedUrl.openStream()).thenThrow(IOException.class);
+        when(mockedUrl.openConnection(any(Proxy.class))).thenThrow(IOException.class);
         Configuration configuration = new Configuration(String.valueOf(Paths.get(pathToResources.toString(), configFile)));
         Configuration configurationSpy = spy(configuration);
         when(configurationSpy.getWellKnownUrl()).thenReturn(mockedUrl).thenCallRealMethod();
@@ -352,7 +426,7 @@ class ConfidentialClientTest {
     }
 
     private static TokenRequestBuilder createTokenRequestBuilderSpy(int statusCode, String resContent,
-                                                                    boolean requiresHeader) throws URISyntaxException,
+                                                                    boolean requiresHeader, HTTPRequest mockedRequest) throws URISyntaxException,
                                                                                                    IOException {
         HTTPResponse res = new HTTPResponse(statusCode);
         res.setContent(resContent);
@@ -367,11 +441,9 @@ class ConfidentialClientTest {
 
         TokenRequestBuilder tokenRequestBuilderSpy = spy(new TokenRequestBuilder());
 
-        HTTPRequest httpRequestMock = mock(HTTPRequest.class);
-
         doReturn(tokenRequestMock).when(tokenRequestBuilderSpy).build();
-        doReturn(httpRequestMock).when(tokenRequestMock).toHTTPRequest();
-        doReturn(res).when(httpRequestMock).send();
+        doReturn(mockedRequest).when(tokenRequestMock).toHTTPRequest();
+        doReturn(res).when(mockedRequest).send();
 
         return tokenRequestBuilderSpy;
     }
