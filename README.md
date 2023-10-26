@@ -18,7 +18,7 @@ Add the below dependency to the project's POM:
 <dependency>
     <groupId>com.factset.sdk</groupId>
     <artifactId>utils</artifactId>
-    <version>1.1.0-SNAPSHOT</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
@@ -32,7 +32,7 @@ repositories {
 }
 
 dependencies {
-    implementation "com.factset.sdk:utils:1.1.0-SNAPSHOT"
+    implementation "com.factset.sdk:utils:1.1.0"
 }
 ```
 
