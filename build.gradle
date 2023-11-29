@@ -24,7 +24,7 @@ dependencies {
     testImplementation "org.assertj:assertj-core:3.24.2"
     testImplementation "org.hamcrest:hamcrest:2.2"
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
-    testRuntimeOnly 'ch.qos.logback:logback-core:1.2.11'
+    testRuntimeOnly 'ch.qos.logback:logback-core:1.4.13'
 
     compileOnly 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
