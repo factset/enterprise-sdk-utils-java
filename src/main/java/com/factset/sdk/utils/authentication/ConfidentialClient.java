@@ -250,6 +250,7 @@ public class ConfidentialClient implements OAuth2Client {
             httpRequest.setProxy(this.requestOptions.getProxy());
             httpRequest.setHostnameVerifier(this.requestOptions.getHostnameVerifier());
             httpRequest.setSSLSocketFactory(this.requestOptions.getSslSocketFactory());
+            httpRequest.setHeader("User-Agent", this.requestOptions.getUserAgent());
 
             logTokenRequest(httpRequest);
 
