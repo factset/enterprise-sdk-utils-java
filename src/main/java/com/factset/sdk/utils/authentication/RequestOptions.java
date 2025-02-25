@@ -19,4 +19,7 @@ public class RequestOptions {
 
     @Builder.Default
     SSLSocketFactory sslSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
+
+    @Builder.Default
+    String userAgent = "fds-sdk/java/utils/1.1.2 (" + System.getProperty("os.name") + "; Java" + System.getProperty("java.version") + ")";
 }
