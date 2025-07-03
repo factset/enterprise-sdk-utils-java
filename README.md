@@ -47,7 +47,7 @@ To be able to install snapshot releases of the sdk an additional repository must
     <repository>
         <id>sonatype</id>
         <name>sonatype-snapshot</name>
-        <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+        <url>https://central.sonatype.com/repository/maven-snapshots/</url>
         <snapshots>
             <enabled>true</enabled>
         </snapshots>
@@ -64,7 +64,7 @@ To be able to install snapshot releases of the sdk an additional repository must
 repositories {
     mavenCentral()
     maven {
-        url = uri("https://oss.sonatype.org/content/repositories/snapshots/")
+        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
         mavenContent {
             snapshotsOnly()
         }
@@ -270,7 +270,7 @@ The logger `com.factset.sdk.utils.authentication.ConfidentialClient` logs out th
 
 # Copyright
 
-Copyright 2024 FactSet Research Systems Inc
+Copyright 2025 FactSet Research Systems Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

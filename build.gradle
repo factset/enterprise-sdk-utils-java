@@ -1,12 +1,17 @@
+import java.time.LocalDate
+
+plugins {
+    id 'java-library'
+    id 'signing'
+    id 'jacoco'
+    id 'maven-publish'
+    id 'org.jreleaser' version '1.17.0'
+}
+
 repositories {
     mavenLocal()
     mavenCentral()
 }
-
-apply plugin: 'java-library'
-apply plugin: 'signing'
-apply plugin: 'jacoco'
-apply plugin: 'maven-publish'
 
 group 'com.factset.sdk'
 version '1.1.4-SNAPSHOT'
@@ -68,6 +73,8 @@ artifacts {
     archives sourcesJar
 }
 
+def artifactStagingDirectory = layout.buildDirectory.dir("build/staging-deploy")
+
 publishing {
     publications {
         register("mavenJava", MavenPublication) {
@@ -104,20 +111,61 @@ publishing {
 
     repositories {
         maven {
-            url = version.endsWith('SNAPSHOT') ? System.getenv('MAVEN_SNAPSHOTS_URL') : System.getenv('MAVEN_RELEASES_URL')
-
-            credentials {
-                username = System.getenv('MAVEN_USERNAME')
-                password = System.getenv('MAVEN_PASSWORD')
-            }
-
-            authentication {
-                digest(BasicAuthentication)
-            }
+            url = uri(artifactStagingDirectory)
         }
     }
 }
 
-signing {
-    sign publishing.publications.mavenJava
+jreleaser {
+    gitRootSearch = true
+
+    project {
+        description = 'FactSet SDK Utilities for Java'
+        authors = ['FactSet']
+        license = "APACHE-2.0"
+        inceptionYear = "2021"
+        vendor = "FactSet"
+        copyright = "Copyright (c) ${LocalDate.now().year} FactSet"
+        return // for the type checker
+    }
+
+    signing {
+        active = 'ALWAYS'
+        armored = true
+        return
+    }
+
+    release {
+        github {
+            skipTag = true
+            skipRelease = true
+            return
+        }
+    }
+
+    deploy {
+        maven {
+            mavenCentral {
+                'release-deploy' {
+                    active = 'RELEASE'
+                    url = "https://central.sonatype.com/api/v1/publisher"
+                    stagingRepository artifactStagingDirectory.get().asFile.path
+                }
+                return
+            }
+            nexus2 {
+                'snapshot-deploy' {
+                    active = 'SNAPSHOT'
+                    url = "https://central.sonatype.com/repository/maven-snapshots/"
+                    snapshotUrl = "https://central.sonatype.com/repository/maven-snapshots/"
+                    applyMavenCentralRules = true
+                    snapshotSupported = true
+                    closeRepository = true
+                    releaseRepository = true
+                    stagingRepository artifactStagingDirectory.get().asFile.path
+                }
+                return
+            }
+        }
+    }
 }
