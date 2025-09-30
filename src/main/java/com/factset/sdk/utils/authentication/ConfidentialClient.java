@@ -51,6 +51,7 @@ public class ConfidentialClient implements OAuth2Client {
     private long jwsIssuedAt;
     private long accessTokenExpireTime;
     private AccessToken accessToken;
+    private final long accessTokenExpiryOffsetMillis;
 
     /**
      * Creates a new ConfidentialClient. When setting up the OAuth 2.0 client, this constructor reaches out to
@@ -66,7 +67,7 @@ public class ConfidentialClient implements OAuth2Client {
     public ConfidentialClient(final String configPath)
         throws AuthServerMetadataContentException, AuthServerMetadataException,
         ConfigurationException {
-        this(new Configuration(configPath));
+        this(new Configuration(configPath), RequestOptions.builder().build(), Constants.DEFAULT_ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS);
     }
 
     /**
@@ -84,7 +85,19 @@ public class ConfidentialClient implements OAuth2Client {
     public ConfidentialClient(final String configPath, RequestOptions requestOptions)
             throws AuthServerMetadataContentException, AuthServerMetadataException,
             ConfigurationException {
-        this(new Configuration(configPath), requestOptions);
+        this(new Configuration(configPath), requestOptions, Constants.DEFAULT_ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS);
+    }
+
+    /**
+     * Creates a new ConfidentialClient with a custom proactive expiry offset.
+     * @param configPath path to config file
+     * @param requestOptions request options (proxy/ssl)
+     * @param accessTokenExpiryOffsetMillis milliseconds subtracted from server expiry (non-negative)
+     */
+    public ConfidentialClient(final String configPath, RequestOptions requestOptions, long accessTokenExpiryOffsetMillis)
+            throws AuthServerMetadataContentException, AuthServerMetadataException,
+            ConfigurationException {
+        this(new Configuration(configPath), requestOptions, accessTokenExpiryOffsetMillis);
     }
 
     /**
@@ -99,7 +112,7 @@ public class ConfidentialClient implements OAuth2Client {
      */
     public ConfidentialClient(final Configuration config)
         throws AuthServerMetadataContentException, AuthServerMetadataException {
-        this(config, RequestOptions.builder().build());
+        this(config, RequestOptions.builder().build(), Constants.DEFAULT_ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS);
     }
 
     /**
@@ -115,11 +128,22 @@ public class ConfidentialClient implements OAuth2Client {
      */
     public ConfidentialClient(final Configuration config, RequestOptions requestOptions)
             throws AuthServerMetadataContentException, AuthServerMetadataException {
+        this(config, requestOptions, Constants.DEFAULT_ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS);
+    }
+
+    /**
+     * Core constructor with configurable access token proactive expiry offset.
+     * @param config configuration
+     * @param requestOptions request options
+     * @param accessTokenExpiryOffsetMillis milliseconds to subtract from token lifetime when computing internal expiry
+     */
+    public ConfidentialClient(final Configuration config, RequestOptions requestOptions, long accessTokenExpiryOffsetMillis)
+            throws AuthServerMetadataContentException, AuthServerMetadataException {
         Objects.requireNonNull(config, "Configuration object must not be null");
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
         this.requestOptions = requestOptions == null ? RequestOptions.builder().build() : requestOptions;
-
+        this.accessTokenExpiryOffsetMillis = accessTokenExpiryOffsetMillis;
         this.requestProviderMetadata();
     }
 
@@ -139,7 +163,7 @@ public class ConfidentialClient implements OAuth2Client {
         throws AuthServerMetadataContentException,
         AuthServerMetadataException,
         ConfigurationException {
-        this(new Configuration(configPath));
+        this(new Configuration(configPath), RequestOptions.builder().build(), Constants.DEFAULT_ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS);
         this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
     }
 
@@ -157,7 +181,7 @@ public class ConfidentialClient implements OAuth2Client {
     protected ConfidentialClient(final Configuration config, final TokenRequestBuilder tokReqBuilder)
         throws AuthServerMetadataContentException,
         AuthServerMetadataException {
-        this(config);
+        this(config, RequestOptions.builder().build(), Constants.DEFAULT_ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS);
         this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
     }
 
@@ -176,7 +200,7 @@ public class ConfidentialClient implements OAuth2Client {
     protected ConfidentialClient(final Configuration config, final TokenRequestBuilder tokReqBuilder, RequestOptions requestOptions)
             throws AuthServerMetadataContentException,
             AuthServerMetadataException {
-        this(config, requestOptions);
+        this(config, requestOptions, Constants.DEFAULT_ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS);
         this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
     }
 
@@ -283,7 +307,7 @@ public class ConfidentialClient implements OAuth2Client {
         if (tokenRes.indicatesSuccess()) {
             this.accessToken = tokenRes.toSuccessResponse().getTokens().getAccessToken();
             this.accessTokenExpireTime =
-                this.jwsIssuedAt + TimeUnit.SECONDS.toMillis(this.accessToken.getLifetime()) - Constants.ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS;
+                this.jwsIssuedAt + TimeUnit.SECONDS.toMillis(this.accessToken.getLifetime()) - this.accessTokenExpiryOffsetMillis;
             LOGGER.info("Fetched access token which expires in: {} seconds (buffered)", this.accessToken.getLifetime());
             return this.accessToken.toString();
         }
