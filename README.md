@@ -139,6 +139,8 @@ public class Console {
 }
 ```
 
+> Token refresh note: `getAccessToken()` (or `getAccessToken(false)`) returns the cached token while valid. Call `getAccessToken(true)` to bypass the cache and force retrieval of a new token.
+
 ### Configure a Proxy
 
 The Confidential Client accepts an additional optional parameter called `RequestOptions`. This can be created to specify a proxy for the client to use. Below is an example of how to do this:
