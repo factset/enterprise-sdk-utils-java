@@ -180,6 +180,26 @@ RequestOptions reqOpt = RequestOptions.builder()
         .build();
 ```
 
+### Access Token Proactive Expiry Offset
+
+The `ConfidentialClient` refreshes access tokens proactively before their actual server-declared expiry to reduce the risk of a token expiring mid-request (e.g. due to latency or clock skew).
+
+Default behaviour:
+- A 30 second (30,000 ms) proactive offset is applied automatically.
+- Calls to `getAccessToken()` (or `getAccessToken(false)`) reuse the cached token while it is still considered valid under this adjusted expiry.
+- `getAccessToken(true)` always forces a fresh token (bypasses cache).
+
+You can override the proactive offset by supplying a custom value (milliseconds) via the constructor overload.
+
+#### Example
+```java
+ConfidentialClient client10s = new ConfidentialClient(
+    "./path/to/config.json",
+    RequestOptions.builder().build(),
+    10000L // 10 second proactive expiry offset
+);
+```
+
 ## Modules
 
 Information about the various utility modules contained in this library can be found below.

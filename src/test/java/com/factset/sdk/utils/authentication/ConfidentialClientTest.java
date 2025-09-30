@@ -336,6 +336,58 @@ class ConfidentialClientTest {
         verify(harness.httpRequestMock, times(1)).send();
     }
 
+    @Test
+    void accessTokenFiftySecondOffsetTriggersRefetchAfterEarlyExpirySingleToken() throws Exception {
+        long offsetMillis = 50_000L;
+        TestHarness harness = createClientTokenCustomOffset(offsetMillis);
+
+        String first = harness.client.getAccessToken();
+        assertEquals("tokenSingle", first);
+        verify(harness.httpRequestMock, times(1)).send();
+
+        java.lang.reflect.Field issuedAtField = ConfidentialClient.class.getDeclaredField("jwsIssuedAt");
+        java.lang.reflect.Field expiryField = ConfidentialClient.class.getDeclaredField("accessTokenExpireTime");
+        issuedAtField.setAccessible(true);
+        expiryField.setAccessible(true);
+        long issuedAt = (long) issuedAtField.get(harness.client);
+        long internalExpiry = (long) expiryField.get(harness.client);
+        long expectedDelta = 899_000L - offsetMillis;
+        assertEquals(expectedDelta, internalExpiry - issuedAt, "Internal expiry should be lifetime - offset");
+
+        expiryField.set(harness.client, System.currentTimeMillis() - 1);
+
+        String second = harness.client.getAccessToken();
+        assertEquals("tokenSingle", second);
+        verify(harness.httpRequestMock, times(2)).send();
+    }
+
+    private static TestHarness createClientTokenCustomOffset(long offsetMillis) throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration configurationMock = getConfigSpyMockedResponse(mockedURL, "validConfig.txt");
+
+        AuthorizationGrant grant = new UnitTestGrant();
+        URI uriSpy = spy(new URI("https://test.test.com/.test-test/test-test"));
+        TokenRequest tokenRequestMock = spy(new TokenRequest(uriSpy, grant, new Scope()));
+        TokenRequestBuilder tokenRequestBuilderSpy = spy(new TokenRequestBuilder());
+        HTTPRequest httpRequestMock = mock(HTTPRequest.class);
+
+        HTTPResponse res = new HTTPResponse(HTTPResponse.SC_OK);
+        res.setContent("{\"access_token\":\"tokenSingle\",\"token_type\":\"Bearer\",\"expires_in\":899}");
+        res.setHeader("Content-Type", "application/json;charset=utf-8");
+
+        doReturn(tokenRequestMock).when(tokenRequestBuilderSpy).build();
+        doReturn(httpRequestMock).when(tokenRequestMock).toHTTPRequest();
+        when(httpRequestMock.send()).thenReturn(res, res);
+
+        ConfidentialClient client = new ConfidentialClient(configurationMock, RequestOptions.builder().build(), offsetMillis);
+        java.lang.reflect.Field f = ConfidentialClient.class.getDeclaredField("tokenRequestBuilder");
+        f.setAccessible(true);
+        f.set(client, tokenRequestBuilderSpy);
+
+        return new TestHarness(client, httpRequestMock);
+    }
+
     private static class TestHarness {
         final ConfidentialClient client;
         final HTTPRequest httpRequestMock;
