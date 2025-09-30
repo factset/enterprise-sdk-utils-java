@@ -182,6 +182,24 @@ public class ConfidentialClient implements OAuth2Client {
 
     /**
      * Returns an access token that can be used for authentication. If the cache contains a valid access token,
+     * it's returned. Otherwise, a new access token is retrieved from FactSet's authorization server.
+     * If forceRefresh is true, always fetches a new token regardless of cache.
+     *
+     * @param forceRefresh If true, forces fetching a new token from the server.
+     * @return The access token in string format.
+     * @throws AccessTokenException If it can't make a successful request or parse the TokenRequest.
+     * @throws SigningJwsException  If the signing of the JWS fails.
+     */
+    public String getAccessToken(boolean forceRefresh) throws AccessTokenException, SigningJwsException {
+        if (!forceRefresh && this.isCachedTokenValid()) {
+            LOGGER.info("Retrieved access token which expires in: {} seconds", TimeUnit.MILLISECONDS.toSeconds(this.accessTokenExpireTime - System.currentTimeMillis()));
+            return this.accessToken.toString();
+        }
+        return this.fetchAccessToken();
+    }
+
+    /**
+     * Returns an access token that can be used for authentication. If the cache contains a valid access token,
      * it's returned. Otherwise, a new access token is retrieved from FactSet's authorization server. The access
      * token should be used immediately and not stored to avoid any issues with token expiry. The access token is
      * used in the Authorization header when accessing FactSet's APIs.
@@ -265,8 +283,8 @@ public class ConfidentialClient implements OAuth2Client {
         if (tokenRes.indicatesSuccess()) {
             this.accessToken = tokenRes.toSuccessResponse().getTokens().getAccessToken();
             this.accessTokenExpireTime =
-                this.jwsIssuedAt + TimeUnit.SECONDS.toMillis(this.accessToken.getLifetime());
-            LOGGER.info("Fetched access token which expires in: {} seconds", this.accessToken.getLifetime());
+                this.jwsIssuedAt + TimeUnit.SECONDS.toMillis(this.accessToken.getLifetime()) - Constants.ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS;
+            LOGGER.info("Fetched access token which expires in: {} seconds (buffered)", this.accessToken.getLifetime());
             return this.accessToken.toString();
         }
 
