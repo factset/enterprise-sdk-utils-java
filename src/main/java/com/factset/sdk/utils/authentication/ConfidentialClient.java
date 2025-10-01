@@ -51,6 +51,7 @@ public class ConfidentialClient implements OAuth2Client {
     private long jwsIssuedAt;
     private long accessTokenExpireTime;
     private AccessToken accessToken;
+    private final long accessTokenExpiryOffsetMillis;
 
     /**
      * Creates a new ConfidentialClient. When setting up the OAuth 2.0 client, this constructor reaches out to
@@ -66,7 +67,7 @@ public class ConfidentialClient implements OAuth2Client {
     public ConfidentialClient(final String configPath)
         throws AuthServerMetadataContentException, AuthServerMetadataException,
         ConfigurationException {
-        this(new Configuration(configPath));
+        this(new Configuration(configPath), RequestOptions.builder().build());
     }
 
     /**
@@ -119,7 +120,7 @@ public class ConfidentialClient implements OAuth2Client {
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
         this.requestOptions = requestOptions == null ? RequestOptions.builder().build() : requestOptions;
-
+        this.accessTokenExpiryOffsetMillis = this.requestOptions.getAccessTokenExpiryOffsetMillis();
         this.requestProviderMetadata();
     }
 
@@ -139,7 +140,7 @@ public class ConfidentialClient implements OAuth2Client {
         throws AuthServerMetadataContentException,
         AuthServerMetadataException,
         ConfigurationException {
-        this(new Configuration(configPath));
+        this(new Configuration(configPath), RequestOptions.builder().build());
         this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
     }
 
@@ -157,7 +158,7 @@ public class ConfidentialClient implements OAuth2Client {
     protected ConfidentialClient(final Configuration config, final TokenRequestBuilder tokReqBuilder)
         throws AuthServerMetadataContentException,
         AuthServerMetadataException {
-        this(config);
+        this(config, RequestOptions.builder().build());
         this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
     }
 
@@ -178,6 +179,24 @@ public class ConfidentialClient implements OAuth2Client {
             AuthServerMetadataException {
         this(config, requestOptions);
         this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
+    }
+
+    /**
+     * Returns an access token that can be used for authentication. If the cache contains a valid access token,
+     * it's returned. Otherwise, a new access token is retrieved from FactSet's authorization server.
+     * If forceRefresh is true, always fetches a new token regardless of cache.
+     *
+     * @param forceRefresh If true, forces fetching a new token from the server.
+     * @return The access token in string format.
+     * @throws AccessTokenException If it can't make a successful request or parse the TokenRequest.
+     * @throws SigningJwsException  If the signing of the JWS fails.
+     */
+    public String getAccessToken(boolean forceRefresh) throws AccessTokenException, SigningJwsException {
+        if (!forceRefresh && this.isCachedTokenValid()) {
+            LOGGER.info("Retrieved access token which expires in: {} seconds", TimeUnit.MILLISECONDS.toSeconds(this.accessTokenExpireTime - System.currentTimeMillis()));
+            return this.accessToken.toString();
+        }
+        return this.fetchAccessToken();
     }
 
     /**
@@ -264,9 +283,21 @@ public class ConfidentialClient implements OAuth2Client {
 
         if (tokenRes.indicatesSuccess()) {
             this.accessToken = tokenRes.toSuccessResponse().getTokens().getAccessToken();
-            this.accessTokenExpireTime =
-                this.jwsIssuedAt + TimeUnit.SECONDS.toMillis(this.accessToken.getLifetime());
-            LOGGER.info("Fetched access token which expires in: {} seconds", this.accessToken.getLifetime());
+            long lifetimeMillis = TimeUnit.SECONDS.toMillis(this.accessToken.getLifetime());
+            long rawOffset = this.accessTokenExpiryOffsetMillis;
+
+            long clampedOffset;
+            if (rawOffset >= 899_000L) {
+                clampedOffset = 899_000L - 1;
+                LOGGER.warn("Proactive expiry offset {}ms >= 899 seconds. Clamped to {}ms.", rawOffset, clampedOffset);
+            } else {
+                clampedOffset = rawOffset;
+            }
+
+            long effectiveLifetime = lifetimeMillis - clampedOffset;
+            this.accessTokenExpireTime = this.jwsIssuedAt + effectiveLifetime;
+            LOGGER.info("Fetched access token (serverLifetime={}s, offsetApplied={}ms, effectiveLifetime={}ms)",
+                    this.accessToken.getLifetime(), clampedOffset, effectiveLifetime);
             return this.accessToken.toString();
         }
 

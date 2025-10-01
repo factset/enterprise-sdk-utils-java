@@ -22,4 +22,7 @@ public class RequestOptions {
 
     @Builder.Default
     String userAgent = "fds-sdk/java/utils/1.1.5 (" + System.getProperty("os.name") + "; Java" + System.getProperty("java.version") + ")";
+
+    @Builder.Default
+    long accessTokenExpiryOffsetMillis = 30_000L;
 }
