@@ -361,6 +361,62 @@ class ConfidentialClientTest {
         verify(harness.httpRequestMock, times(2)).send();
     }
 
+    @Test
+    void accessTokenDefaultOffsetUsesThirtySeconds() throws Exception {
+        RequestOptions defaultOptions = RequestOptions.builder().build();
+        TestHarness harness = createClientTokenCustomOffset(30_000L);
+
+        String token = harness.client.getAccessToken();
+        assertEquals("tokenSingle", token);
+
+        assertEquals(30_000L, defaultOptions.getAccessTokenExpiryOffsetMillis(), "RequestOptions should have default 30s offset");
+
+        java.lang.reflect.Field issuedAtField = ConfidentialClient.class.getDeclaredField("jwsIssuedAt");
+        java.lang.reflect.Field expiryField = ConfidentialClient.class.getDeclaredField("accessTokenExpireTime");
+        issuedAtField.setAccessible(true);
+        expiryField.setAccessible(true);
+
+        long issuedAt = (long) issuedAtField.get(harness.client);
+        long internalExpiry = (long) expiryField.get(harness.client);
+        long expectedDelta = 899_000L - 30_000L;
+        assertEquals(expectedDelta, internalExpiry - issuedAt, "Internal expiry should be lifetime - default offset");
+    }
+
+    @Test
+    void accessTokenNegativeOffsetExtendsLifetime() throws Exception {
+        TestHarness harness = createClientTokenCustomOffset(-10_000L);
+
+        String first = harness.client.getAccessToken();
+        assertEquals("tokenSingle", first);
+        verify(harness.httpRequestMock, times(1)).send();
+
+        java.lang.reflect.Field issuedAtField = ConfidentialClient.class.getDeclaredField("jwsIssuedAt");
+        java.lang.reflect.Field expiryField = ConfidentialClient.class.getDeclaredField("accessTokenExpireTime");
+        issuedAtField.setAccessible(true);
+        expiryField.setAccessible(true);
+        long issuedAt = (long) issuedAtField.get(harness.client);
+        long internalExpiry = (long) expiryField.get(harness.client);
+        long expectedDelta = 899_000L - (-10_000L);
+        assertEquals(expectedDelta, internalExpiry - issuedAt, "Negative offset should extend lifetime");
+    }
+
+    @Test
+    void accessTokenLargeOffsetGetsClampedToUnder899Seconds() throws Exception {
+        TestHarness harness = createClientTokenCustomOffset(900_000L);
+
+        String first = harness.client.getAccessToken();
+        assertEquals("tokenSingle", first);
+
+        java.lang.reflect.Field issuedAtField = ConfidentialClient.class.getDeclaredField("jwsIssuedAt");
+        java.lang.reflect.Field expiryField = ConfidentialClient.class.getDeclaredField("accessTokenExpireTime");
+        issuedAtField.setAccessible(true);
+        expiryField.setAccessible(true);
+        long issuedAt = (long) issuedAtField.get(harness.client);
+        long internalExpiry = (long) expiryField.get(harness.client);
+        long expectedDelta = 899_000L - (899_000L - 1);
+        assertEquals(expectedDelta, internalExpiry - issuedAt, "Large offset should be clamped, leaving 1ms effective lifetime");
+    }
+
     private static TestHarness createClientTokenCustomOffset(long offsetMillis) throws Exception {
         HttpURLConnection mockedConn = mock(HttpURLConnection.class);
         URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
@@ -380,7 +436,11 @@ class ConfidentialClientTest {
         doReturn(httpRequestMock).when(tokenRequestMock).toHTTPRequest();
         when(httpRequestMock.send()).thenReturn(res, res);
 
-        ConfidentialClient client = new ConfidentialClient(configurationMock, RequestOptions.builder().build(), offsetMillis);
+        RequestOptions requestOptionsWithOffset = RequestOptions.builder()
+            .accessTokenExpiryOffsetMillis(offsetMillis)
+            .build();
+
+        ConfidentialClient client = new ConfidentialClient(configurationMock, requestOptionsWithOffset);
         java.lang.reflect.Field f = ConfidentialClient.class.getDeclaredField("tokenRequestBuilder");
         f.setAccessible(true);
         f.set(client, tokenRequestBuilderSpy);

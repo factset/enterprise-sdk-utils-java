@@ -189,15 +189,14 @@ Default behaviour:
 - Calls to `getAccessToken()` (or `getAccessToken(false)`) reuse the cached token while it is still considered valid under this adjusted expiry.
 - `getAccessToken(true)` always forces a fresh token (bypasses cache).
 
-You can override the proactive offset by supplying a custom value (milliseconds) via the constructor overload.
+You can override the proactive offset by configuring it in `RequestOptions`:
 
 #### Example
 ```java
-ConfidentialClient client10s = new ConfidentialClient(
-    "./path/to/config.json",
-    RequestOptions.builder().build(),
-    10000L // 10 second proactive expiry offset
-);
+RequestOptions options10s = RequestOptions.builder()
+    .accessTokenExpiryOffsetMillis(90_000L) // 90 seconds
+    .build();
+ConfidentialClient client10s = new ConfidentialClient("./path/to/config.json", options10s);
 ```
 
 ## Modules

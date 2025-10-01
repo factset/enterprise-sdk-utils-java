@@ -13,11 +13,6 @@ public final class Constants {
     // default values
     public static final String FACTSET_WELL_KNOWN_URI = "https://auth.factset.com/.well-known/openid-configuration";
 
-    /**
-     * Default buffer (in milliseconds) to refresh access token before actual expiry.
-     */
-    public static final long DEFAULT_ACCESS_TOKEN_EXPIRY_OFFSET_MILLIS = 30000L;
-
     private Constants() {
         throw new IllegalStateException("Utility class");
     }
