@@ -16,8 +16,12 @@ import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -25,19 +29,19 @@ import static org.mockito.Mockito.*;
 class ConfidentialClientTest {
 
     public final static String validJwk = "{\n" +
-        "    \"p\": \"3QAUkyFNCv8CRLQfpj9zovNUchcN-HgCxOY_BMWPsbFzZ8slliFoQl8EANEJJPUMKY8sh3ZnU0pH2T8qoQoRvDstX4XzH0kdMKK8LMJ-8J5Nzf2Ps9Z2va_G0OhkMkdT__7jzO-qHQAgIxOy15ka4JGvqhi9fsB13RslsRNOpnk\",\n" +
-        "    \"kty\": \"RSA\",\n" +
-        "    \"q\": \"oBZ17ZrK2B5ufELRwc3ZLB09xo2LjuEK7k8ZTtM5FUBTn-6hoaJwwyJvI5UgxY5Ge46i_wQifMOJb3g-ALu8pq-Nm6N0HmZ9dxU8_REZEQFARM9pieU-dQxYJZFrbqWFLiVYc8kq8mocQe25TFmBI3t_TQ8Y7C2KltOKQTbnkAs\",\n" +
-        "    \"d\": \"eeZ7uLCCq9Xzd6q0O13F38hfGEgajV_zMf893Bm-qjH3ipzwCztESeqaKJFNmZEkQ1a2ee2Rvjt0yZLF-8Fxu53TgfEipNWF03zraEhmM62wf86g1dFrAwFBJ0-HbPyQ_Z9zvD8y_XjrxNJ887bxHJmnFU1ER2AfW519mHm2zH8mU_tZQrhQ3f8bJSkg528LDSmStCXUPHKczxdCQj5Vg93mZQtHFG-r3h0AHWZKIidDqoFZTNuimrFL-BTAiT72GnFDhJTKpzGnWXeQ65e_0z0agh2hHYTNyKcTffWjRnNwH5q02VpHLHQ_I8GFGmhzdN4Mtg9tVQ_dpOiOiaw-UQ\",\n" +
-        "    \"e\": \"AQAB\",\n" +
-        "    \"use\": \"sig\",\n" +
-        "    \"kid\": \"Pa-A4WppSTO39nfRFBP_IpM13sBNXnmj9liYF5pYRhI\",\n" +
-        "    \"qi\": \"tBOoQVBu032Lkpnv5z5I4ynNhW8wD5o8DzMyH6OOeFujTz83plsk8zwZiKnSKcL2Qx9eUgmcLGMlx30lkyaw0nkHB7P6WDXqXsrS1c69ninzkzHd32-tQpqrOMT8vQKa0tawZjrIaEoR-3MhbMOXYrNCZvuixdJXz2E4KrJsFN0\",\n" +
-        "    \"dp\": \"tbb-M-ga0CLUO6ebqnfb3i2Tzuez_gy3wizLvmGvgF03Vi3MbwBzGLfFs-ItUa0H3hgydgPee7bFExWEOLvtz0cdTMD4Ik5c6QO2FFusQq73rJuEEEwUgG3K3TVoRYsuv3xW1MhvqL7UreLhl7L1TZecyBDlpxYbE73hpRMKBYk\",\n" +
-        "    \"alg\": \"RS256\",\n" +
-        "    \"dq\": \"QzGqRhUW1yfO0DFrwaEZar7LUy_OSCaFZAmnYcKezyC0-Qg8p497LSyi4ZiSrNlPFEWGfOvLXfrlEPizbbNfN8ev9IfjEW-LchRkCQTINK8FvtwgPFUQpiiMRxiGs2aeRARA4Dir4hxPyAx0HmvjHHWVtU6E830aEryv5zeYcok\",\n" +
-        "    \"n\": \"ijNwq-GQdu9yj1fpCLF3LJeKD_KxCFdVR6s4N57eNuhfZKGwQrnc_kf_1j7VLPCHx-UVI-S4A2yUKlo-G6h2otpQUtoN9WYaSIrowo2k7Fdd55zW1rtNzD_XplWLc8ZnBrGHLfWAQfMDHvhHsuPVctt3uH1aIv768iWahALra-ym0HHge_mluCD823Ovam-q_sn50ZCf58DbecZj7VGVCkzRNLDJsnSvh3w7BHDwUhw_oZls75IfZ-ORZQuykfEDvaHCrNbHaKJFK843m9v5C47BGqjTEqBOQ71XR3oZ-Znr1nlcE8k1FlkgA3VCFWFZuixEQJtg1tiKqbtGzzQ3Mw\"\n" +
-        "}";
+            "    \"p\": \"3QAUkyFNCv8CRLQfpj9zovNUchcN-HgCxOY_BMWPsbFzZ8slliFoQl8EANEJJPUMKY8sh3ZnU0pH2T8qoQoRvDstX4XzH0kdMKK8LMJ-8J5Nzf2Ps9Z2va_G0OhkMkdT__7jzO-qHQAgIxOy15ka4JGvqhi9fsB13RslsRNOpnk\",\n" +
+            "    \"kty\": \"RSA\",\n" +
+            "    \"q\": \"oBZ17ZrK2B5ufELRwc3ZLB09xo2LjuEK7k8ZTtM5FUBTn-6hoaJwwyJvI5UgxY5Ge46i_wQifMOJb3g-ALu8pq-Nm6N0HmZ9dxU8_REZEQFARM9pieU-dQxYJZFrbqWFLiVYc8kq8mocQe25TFmBI3t_TQ8Y7C2KltOKQTbnkAs\",\n" +
+            "    \"d\": \"eeZ7uLCCq9Xzd6q0O13F38hfGEgajV_zMf893Bm-qjH3ipzwCztESeqaKJFNmZEkQ1a2ee2Rvjt0yZLF-8Fxu53TgfEipNWF03zraEhmM62wf86g1dFrAwFBJ0-HbPyQ_Z9zvD8y_XjrxNJ887bxHJmnFU1ER2AfW519mHm2zH8mU_tZQrhQ3f8bJSkg528LDSmStCXUPHKczxdCQj5Vg93mZQtHFG-r3h0AHWZKIidDqoFZTNuimrFL-BTAiT72GnFDhJTKpzGnWXeQ65e_0z0agh2hHYTNyKcTffWjRnNwH5q02VpHLHQ_I8GFGmhzdN4Mtg9tVQ_dpOiOiaw-UQ\",\n" +
+            "    \"e\": \"AQAB\",\n" +
+            "    \"use\": \"sig\",\n" +
+            "    \"kid\": \"Pa-A4WppSTO39nfRFBP_IpM13sBNXnmj9liYF5pYRhI\",\n" +
+            "    \"qi\": \"tBOoQVBu032Lkpnv5z5I4ynNhW8wD5o8DzMyH6OOeFujTz83plsk8zwZiKnSKcL2Qx9eUgmcLGMlx30lkyaw0nkHB7P6WDXqXsrS1c69ninzkzHd32-tQpqrOMT8vQKa0tawZjrIaEoR-3MhbMOXYrNCZvuixdJXz2E4KrJsFN0\",\n" +
+            "    \"dp\": \"tbb-M-ga0CLUO6ebqnfb3i2Tzuez_gy3wizLvmGvgF03Vi3MbwBzGLfFs-ItUa0H3hgydgPee7bFExWEOLvtz0cdTMD4Ik5c6QO2FFusQq73rJuEEEwUgG3K3TVoRYsuv3xW1MhvqL7UreLhl7L1TZecyBDlpxYbE73hpRMKBYk\",\n" +
+            "    \"alg\": \"RS256\",\n" +
+            "    \"dq\": \"QzGqRhUW1yfO0DFrwaEZar7LUy_OSCaFZAmnYcKezyC0-Qg8p497LSyi4ZiSrNlPFEWGfOvLXfrlEPizbbNfN8ev9IfjEW-LchRkCQTINK8FvtwgPFUQpiiMRxiGs2aeRARA4Dir4hxPyAx0HmvjHHWVtU6E830aEryv5zeYcok\",\n" +
+            "    \"n\": \"ijNwq-GQdu9yj1fpCLF3LJeKD_KxCFdVR6s4N57eNuhfZKGwQrnc_kf_1j7VLPCHx-UVI-S4A2yUKlo-G6h2otpQUtoN9WYaSIrowo2k7Fdd55zW1rtNzD_XplWLc8ZnBrGHLfWAQfMDHvhHsuPVctt3uH1aIv768iWahALra-ym0HHge_mluCD823Ovam-q_sn50ZCf58DbecZj7VGVCkzRNLDJsnSvh3w7BHDwUhw_oZls75IfZ-ORZQuykfEDvaHCrNbHaKJFK843m9v5C47BGqjTEqBOQ71XR3oZ-Znr1nlcE8k1FlkgA3VCFWFZuixEQJtg1tiKqbtGzzQ3Mw\"\n" +
+            "}";
 
     private static Path pathToResources;
 
@@ -127,9 +131,9 @@ class ConfidentialClientTest {
     void confidentialClientValidPathValidConfigCustomWellKnownUriThrowsConfigurationException() {
         try {
             Configuration configuration = new Configuration("testClientId",
-                                                            "testAuthType",
-                                                            RSAKey.parse(validJwk),
-                                                            "failing:wellKnownUri//");
+                    "testAuthType",
+                    RSAKey.parse(validJwk),
+                    "failing:wellKnownUri//");
 
             new ConfidentialClient(configuration);
             fail();
@@ -146,7 +150,7 @@ class ConfidentialClientTest {
         } catch (Exception e) {
             assertTrue(e instanceof AuthServerMetadataException);
             assertEquals(String.format("Error retrieving contents from WellKnownUri: %s", Constants.FACTSET_WELL_KNOWN_URI),
-                         e.getMessage());
+                    e.getMessage());
         }
     }
 
@@ -162,9 +166,9 @@ class ConfidentialClientTest {
     void confidentialClientValidPathValidConfigCustomWellKnownUriInitialisesWithNoException() {
         assertDoesNotThrow(() -> {
             Configuration configuration = new Configuration("testClientId",
-                "testAuthType",
-                RSAKey.parse(validJwk),
-                "https://test.test.com/.test-test/test-test");
+                    "testAuthType",
+                    RSAKey.parse(validJwk),
+                    "https://test.test.com/.test-test/test-test");
 
             // If this confidential client is instantiated without exceptions, that results in a passing test.
             HttpURLConnection mockedConn = mock(HttpURLConnection.class);
@@ -307,16 +311,6 @@ class ConfidentialClientTest {
     }
 
     @Test
-    void getAccessTokenWithForceRefreshTrueAlwaysFetchesNewToken() throws Exception {
-        TestHarness harness = createClientWithTokens(899, "token1", "token2");
-        String tokenA = harness.client.getAccessToken(true);
-        String tokenB = harness.client.getAccessToken(true);
-        assertEquals("token1", tokenA);
-        assertEquals("token2", tokenB);
-        verify(harness.httpRequestMock, times(2)).send();
-    }
-
-    @Test
     void getAccessTokenWithForceRefreshFalseReturnsCachedTokenIfValid() throws Exception {
         TestHarness harness = createClientWithTokens(899, "tokenX");
         String token1 = harness.client.getAccessToken(false);
@@ -337,9 +331,45 @@ class ConfidentialClientTest {
     }
 
     @Test
+    void getAccessTokenTwoDifferentThreadsSimultaneouslyOnlyFetchesOnce() throws Exception {
+        TestHarness harness = createClientWithTokens(899, "threadedToken");
+
+        Runnable task = () -> {
+            String token;
+            try {
+                token = harness.client.getAccessToken();
+            } catch (AccessTokenException | SigningJwsException e) {
+                throw new RuntimeException(e);
+            }
+            assertEquals("threadedToken", token);
+        };
+
+        Thread thread1 = new Thread(task);
+        Thread thread2 = new Thread(task);
+        thread1.start();
+        thread2.start();
+        thread1.join();
+        thread2.join();
+
+        verify(harness.httpRequestMock, times(1)).send();
+    }
+
+    @Test
+    void forceRefreshWithinGracePeriodReturnsCachedToken() throws Exception {
+        TestHarness harness = createClientWithTokens(899, "token1", "token2", "token3");
+
+        String initialToken = harness.client.getAccessToken();
+        assertEquals("token1", initialToken);
+
+        String gracePeriodToken = harness.client.getAccessToken(true);
+        assertEquals("token1", gracePeriodToken);
+
+        verify(harness.httpRequestMock, times(1)).send();
+    }
+
+    @Test
     void accessTokenFiftySecondOffsetTriggersRefetchAfterEarlyExpirySingleToken() throws Exception {
-        long offsetMillis = 50_000L;
-        TestHarness harness = createClientTokenCustomOffset(offsetMillis);
+        TestHarness harness = createClientTokenCustomOffset(50);
 
         String first = harness.client.getAccessToken();
         assertEquals("tokenSingle", first);
@@ -351,7 +381,7 @@ class ConfidentialClientTest {
         expiryField.setAccessible(true);
         long issuedAt = (long) issuedAtField.get(harness.client);
         long internalExpiry = (long) expiryField.get(harness.client);
-        long expectedDelta = 899_000L - offsetMillis;
+        long expectedDelta = 899_000L - 50_000L;
         assertEquals(expectedDelta, internalExpiry - issuedAt, "Internal expiry should be lifetime - offset");
 
         expiryField.set(harness.client, System.currentTimeMillis() - 1);
@@ -364,12 +394,12 @@ class ConfidentialClientTest {
     @Test
     void accessTokenDefaultOffsetUsesThirtySeconds() throws Exception {
         RequestOptions defaultOptions = RequestOptions.builder().build();
-        TestHarness harness = createClientTokenCustomOffset(30_000L);
+        TestHarness harness = createClientTokenCustomOffset(30);
 
         String token = harness.client.getAccessToken();
         assertEquals("tokenSingle", token);
 
-        assertEquals(30_000L, defaultOptions.getAccessTokenExpiryOffsetMillis(), "RequestOptions should have default 30s offset");
+        assertEquals(30_000L, defaultOptions.getAccessTokenExpiryOffset().toMillis(), "RequestOptions should have default 30s offset");
 
         java.lang.reflect.Field issuedAtField = ConfidentialClient.class.getDeclaredField("jwsIssuedAt");
         java.lang.reflect.Field expiryField = ConfidentialClient.class.getDeclaredField("accessTokenExpireTime");
@@ -384,7 +414,7 @@ class ConfidentialClientTest {
 
     @Test
     void accessTokenNegativeOffsetExtendsLifetime() throws Exception {
-        TestHarness harness = createClientTokenCustomOffset(-10_000L);
+        TestHarness harness = createClientTokenCustomOffset(-10);
 
         String first = harness.client.getAccessToken();
         assertEquals("tokenSingle", first);
@@ -401,8 +431,8 @@ class ConfidentialClientTest {
     }
 
     @Test
-    void accessTokenLargeOffsetGetsClampedToUnder899Seconds() throws Exception {
-        TestHarness harness = createClientTokenCustomOffset(900_000L);
+    void accessTokenLargeOffsetGetsClampedToFiveSeconds() throws Exception {
+        TestHarness harness = createClientTokenCustomOffset(900);
 
         String first = harness.client.getAccessToken();
         assertEquals("tokenSingle", first);
@@ -413,11 +443,11 @@ class ConfidentialClientTest {
         expiryField.setAccessible(true);
         long issuedAt = (long) issuedAtField.get(harness.client);
         long internalExpiry = (long) expiryField.get(harness.client);
-        long expectedDelta = 899_000L - (899_000L - 1);
-        assertEquals(expectedDelta, internalExpiry - issuedAt, "Large offset should be clamped, leaving 1ms effective lifetime");
+        long expectedDelta = 899_000L - 894_000L;
+        assertEquals(expectedDelta, internalExpiry - issuedAt, "Large offset should be clamped, leaving 5s effective lifetime");
     }
 
-    private static TestHarness createClientTokenCustomOffset(long offsetMillis) throws Exception {
+    private static TestHarness createClientTokenCustomOffset(int offset) throws Exception {
         HttpURLConnection mockedConn = mock(HttpURLConnection.class);
         URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
         Configuration configurationMock = getConfigSpyMockedResponse(mockedURL, "validConfig.txt");
@@ -437,8 +467,8 @@ class ConfidentialClientTest {
         when(httpRequestMock.send()).thenReturn(res, res);
 
         RequestOptions requestOptionsWithOffset = RequestOptions.builder()
-            .accessTokenExpiryOffsetMillis(offsetMillis)
-            .build();
+                .accessTokenExpiryOffset(Duration.ofSeconds(offset))
+                .build();
 
         ConfidentialClient client = new ConfidentialClient(configurationMock, requestOptionsWithOffset);
         java.lang.reflect.Field f = ConfidentialClient.class.getDeclaredField("tokenRequestBuilder");
@@ -451,6 +481,7 @@ class ConfidentialClientTest {
     private static class TestHarness {
         final ConfidentialClient client;
         final HTTPRequest httpRequestMock;
+
         TestHarness(ConfidentialClient client, HTTPRequest httpRequestMock) {
             this.client = client;
             this.httpRequestMock = httpRequestMock;
@@ -519,7 +550,7 @@ class ConfidentialClientTest {
 
     private static TokenRequestBuilder createTokenRequestBuilderSpy(int statusCode, String resContent,
                                                                     boolean requiresHeader, HTTPRequest mockedRequest) throws URISyntaxException,
-                                                                                                   IOException {
+            IOException {
         HTTPResponse res = new HTTPResponse(statusCode);
         res.setContent(resContent);
         if (requiresHeader) {
@@ -555,4 +586,5 @@ class ConfidentialClientTest {
             return null;
         }
     }
+
 }
