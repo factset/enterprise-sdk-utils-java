@@ -187,7 +187,7 @@ The `ConfidentialClient` refreshes access tokens proactively before their actual
 Default behaviour:
 - A 30 second (30,000 ms) proactive offset is applied automatically.
 - Calls to `getAccessToken()` (or `getAccessToken(false)`) reuse the cached token while it is still considered valid under this adjusted expiry.
-- `getAccessToken(true)` forces a fresh token unless one was very recently refreshed (within 5 seconds) to avoid unnecessary duplicate requests from concurrent threads.
+- `getAccessToken(true)` forces a fresh token unless one was very recently refreshed (within 5 seconds) to avoid unnecessary duplicate requests.
 
 You can override the proactive offset by configuring it in `RequestOptions`:
 

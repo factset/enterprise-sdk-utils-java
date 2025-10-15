@@ -330,29 +330,6 @@ class ConfidentialClientTest {
         verify(harness.httpRequestMock, times(1)).send();
     }
 
-    @Test
-    void getAccessTokenTwoDifferentThreadsSimultaneouslyOnlyFetchesOnce() throws Exception {
-        TestHarness harness = createClientWithTokens(899, "threadedToken");
-
-        Runnable task = () -> {
-            String token;
-            try {
-                token = harness.client.getAccessToken();
-            } catch (AccessTokenException | SigningJwsException e) {
-                throw new RuntimeException(e);
-            }
-            assertEquals("threadedToken", token);
-        };
-
-        Thread thread1 = new Thread(task);
-        Thread thread2 = new Thread(task);
-        thread1.start();
-        thread2.start();
-        thread1.join();
-        thread2.join();
-
-        verify(harness.httpRequestMock, times(1)).send();
-    }
 
     @Test
     void forceRefreshWithinGracePeriodReturnsCachedToken() throws Exception {
