@@ -33,7 +33,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import java.time.Duration; // added for internal duration usage
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -194,16 +194,15 @@ public class ConfidentialClient implements OAuth2Client {
      * @throws AccessTokenException If it can't make a successful request or parse the TokenRequest.
      * @throws SigningJwsException  If the signing of the JWS fails.
      */
-    public synchronized String getAccessToken(boolean forceRefresh) throws AccessTokenException, SigningJwsException {
+    public String getAccessToken(boolean forceRefresh) throws AccessTokenException, SigningJwsException {
         if (this.isCachedTokenValid()) {
             if (!forceRefresh) {
                 LOGGER.info("Retrieved access token which expires in: {} seconds", TimeUnit.MILLISECONDS.toSeconds(this.accessTokenExpireTime - System.currentTimeMillis()));
                 return this.accessToken.toString();
             }
 
+            // Implement a grace period of 5 seconds to avoid unnecessary token refreshes
             long currentTime = System.currentTimeMillis();
-
-            // Implementing a grace period of 5 seconds to avoid unnecessary token refreshes
             boolean recentlyRefreshed = (currentTime - this.lastRefreshTime) < 5000;
             if (recentlyRefreshed) {
                 LOGGER.debug("Force refresh requested but token was recently refreshed within grace period, returning cached token");
@@ -225,13 +224,8 @@ public class ConfidentialClient implements OAuth2Client {
      * @throws SigningJwsException  If the signing of the JWS fails.
      */
     @Override
-    public synchronized String getAccessToken() throws AccessTokenException, SigningJwsException {
-        if (this.isCachedTokenValid()) {
-            LOGGER.info("Retrieved access token which expires in: {} seconds", TimeUnit.MILLISECONDS.toSeconds(this.accessTokenExpireTime - System.currentTimeMillis()));
-            return this.accessToken.toString();
-        }
-
-        return this.fetchAccessToken();
+    public String getAccessToken() throws AccessTokenException, SigningJwsException {
+        return getAccessToken(false);
     }
 
     private void requestProviderMetadata() throws AuthServerMetadataContentException, AuthServerMetadataException {
@@ -264,7 +258,7 @@ public class ConfidentialClient implements OAuth2Client {
                 new TokenRequestBuilder().uri(this.providerMetadata.getTokenEndpointURI());
     }
 
-    private synchronized boolean isCachedTokenValid() {
+    private boolean isCachedTokenValid() {
         if (this.accessToken == null) {
             return false;
         }
