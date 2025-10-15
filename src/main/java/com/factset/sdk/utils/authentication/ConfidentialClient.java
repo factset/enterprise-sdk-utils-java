@@ -194,7 +194,7 @@ public class ConfidentialClient implements OAuth2Client {
      * @throws AccessTokenException If it can't make a successful request or parse the TokenRequest.
      * @throws SigningJwsException  If the signing of the JWS fails.
      */
-    public String getAccessToken(boolean forceRefresh) throws AccessTokenException, SigningJwsException {
+    public synchronized String getAccessToken(boolean forceRefresh) throws AccessTokenException, SigningJwsException {
         if (this.isCachedTokenValid()) {
             if (!forceRefresh) {
                 LOGGER.info("Retrieved access token which expires in: {} seconds", TimeUnit.MILLISECONDS.toSeconds(this.accessTokenExpireTime - System.currentTimeMillis()));
