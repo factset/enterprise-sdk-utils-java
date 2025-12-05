@@ -33,6 +33,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,8 @@ public class ConfidentialClient implements OAuth2Client {
     private long jwsIssuedAt;
     private long accessTokenExpireTime;
     private AccessToken accessToken;
+    private final Duration accessTokenExpiryOffset;
+    private long lastRefreshTime;
 
     /**
      * Creates a new ConfidentialClient. When setting up the OAuth 2.0 client, this constructor reaches out to
@@ -66,7 +69,7 @@ public class ConfidentialClient implements OAuth2Client {
     public ConfidentialClient(final String configPath)
         throws AuthServerMetadataContentException, AuthServerMetadataException,
         ConfigurationException {
-        this(new Configuration(configPath));
+        this(new Configuration(configPath), RequestOptions.builder().build());
     }
 
     /**
@@ -119,7 +122,7 @@ public class ConfidentialClient implements OAuth2Client {
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
         this.requestOptions = requestOptions == null ? RequestOptions.builder().build() : requestOptions;
-
+        this.accessTokenExpiryOffset = this.requestOptions.getAccessTokenExpiryOffset();
         this.requestProviderMetadata();
     }
 
@@ -139,7 +142,7 @@ public class ConfidentialClient implements OAuth2Client {
         throws AuthServerMetadataContentException,
         AuthServerMetadataException,
         ConfigurationException {
-        this(new Configuration(configPath));
+        this(new Configuration(configPath), RequestOptions.builder().build());
         this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
     }
 
@@ -157,7 +160,7 @@ public class ConfidentialClient implements OAuth2Client {
     protected ConfidentialClient(final Configuration config, final TokenRequestBuilder tokReqBuilder)
         throws AuthServerMetadataContentException,
         AuthServerMetadataException {
-        this(config);
+        this(config, RequestOptions.builder().build());
         this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
     }
 
@@ -182,6 +185,36 @@ public class ConfidentialClient implements OAuth2Client {
 
     /**
      * Returns an access token that can be used for authentication. If the cache contains a valid access token,
+     * it's returned. Otherwise, a new access token is retrieved from FactSet's authorization server.
+     * If forceRefresh is true, fetches a new token unless one was very recently refreshed (within 5 seconds)
+     * to avoid unnecessary duplicate requests from concurrent threads.
+     *
+     * @param forceRefresh If true, forces fetching a new token from the server.
+     * @return The access token in string format.
+     * @throws AccessTokenException If it can't make a successful request or parse the TokenRequest.
+     * @throws SigningJwsException  If the signing of the JWS fails.
+     */
+    public String getAccessToken(boolean forceRefresh) throws AccessTokenException, SigningJwsException {
+        if (this.isCachedTokenValid()) {
+            if (!forceRefresh) {
+                LOGGER.info("Retrieved access token which expires in: {} seconds", TimeUnit.MILLISECONDS.toSeconds(this.accessTokenExpireTime - System.currentTimeMillis()));
+                return this.accessToken.toString();
+            }
+
+            // Implement a grace period of 5 seconds to avoid unnecessary token refreshes
+            long currentTime = System.currentTimeMillis();
+            boolean recentlyRefreshed = (currentTime - this.lastRefreshTime) < 5000;
+            if (recentlyRefreshed) {
+                LOGGER.debug("Force refresh requested but token was recently refreshed within grace period, returning cached token");
+                return this.accessToken.toString();
+            }
+        }
+
+        return this.fetchAccessToken();
+    }
+
+    /**
+     * Returns an access token that can be used for authentication. If the cache contains a valid access token,
      * it's returned. Otherwise, a new access token is retrieved from FactSet's authorization server. The access
      * token should be used immediately and not stored to avoid any issues with token expiry. The access token is
      * used in the Authorization header when accessing FactSet's APIs.
@@ -192,12 +225,7 @@ public class ConfidentialClient implements OAuth2Client {
      */
     @Override
     public String getAccessToken() throws AccessTokenException, SigningJwsException {
-        if (this.isCachedTokenValid()) {
-            LOGGER.info("Retrieved access token which expires in: {} seconds", TimeUnit.MILLISECONDS.toSeconds(this.accessTokenExpireTime - System.currentTimeMillis()));
-            return this.accessToken.toString();
-        }
-
-        return this.fetchAccessToken();
+        return getAccessToken(false);
     }
 
     private void requestProviderMetadata() throws AuthServerMetadataContentException, AuthServerMetadataException {
@@ -264,9 +292,13 @@ public class ConfidentialClient implements OAuth2Client {
 
         if (tokenRes.indicatesSuccess()) {
             this.accessToken = tokenRes.toSuccessResponse().getTokens().getAccessToken();
-            this.accessTokenExpireTime =
-                this.jwsIssuedAt + TimeUnit.SECONDS.toMillis(this.accessToken.getLifetime());
-            LOGGER.info("Fetched access token which expires in: {} seconds", this.accessToken.getLifetime());
+            long lifetimeMillis = java.util.concurrent.TimeUnit.SECONDS.toMillis(this.accessToken.getLifetime());
+            long offsetMillis = this.accessTokenExpiryOffset.toMillis();
+            long effectiveLifetime = lifetimeMillis - offsetMillis;
+            this.accessTokenExpireTime = this.jwsIssuedAt + effectiveLifetime;
+            LOGGER.info("Fetched access token (serverLifetime={}s, configuredOffset={}ms, effectiveLifetime={}ms)",
+                    this.accessToken.getLifetime(), offsetMillis, effectiveLifetime);
+            this.lastRefreshTime = System.currentTimeMillis();
             return this.accessToken.toString();
         }
 
