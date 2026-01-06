@@ -69,7 +69,7 @@ public class ConfidentialClient implements OAuth2Client {
     public ConfidentialClient(final String configPath)
         throws AuthServerMetadataContentException, AuthServerMetadataException,
         ConfigurationException {
-        this(new Configuration(configPath), RequestOptions.builder().build());
+        this(new Configuration(configPath));
     }
 
     /**
