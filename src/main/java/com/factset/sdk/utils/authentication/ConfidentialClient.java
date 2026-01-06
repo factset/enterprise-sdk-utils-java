@@ -160,7 +160,7 @@ public class ConfidentialClient implements OAuth2Client {
     protected ConfidentialClient(final Configuration config, final TokenRequestBuilder tokReqBuilder)
         throws AuthServerMetadataContentException,
         AuthServerMetadataException {
-        this(config, RequestOptions.builder().build());
+        this(config);
         this.tokenRequestBuilder = tokReqBuilder.uri(this.providerMetadata.getTokenEndpointURI());
     }
 
