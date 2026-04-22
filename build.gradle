@@ -20,7 +20,7 @@ dependencies {
     implementation('org.slf4j:slf4j-api:2.0.17')
     implementation('com.nimbusds:nimbus-jose-jwt:10.9')
     implementation('org.json:json:20250517')
-    implementation('com.nimbusds:oauth2-oidc-sdk:11.32')
+    implementation('com.nimbusds:oauth2-oidc-sdk:11.37')
 
     testImplementation(platform('org.junit:junit-bom:5.13.4'))
     testImplementation('org.junit.jupiter:junit-jupiter:5.13.4')
