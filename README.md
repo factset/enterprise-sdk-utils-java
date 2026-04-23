@@ -139,6 +139,8 @@ public class Console {
 }
 ```
 
+> Token refresh note: `getAccessToken()` (or `getAccessToken(false)`) returns the cached token while valid. Call `getAccessToken(true)` to bypass the cache and force retrieval of a new token. (See [Access Token Proactive Expiry Offset](#access-token-proactive-expiry-offset) for details on token expiry handling.)
+
 ### Configure a Proxy
 
 The Confidential Client accepts an additional optional parameter called `RequestOptions`. This can be created to specify a proxy for the client to use. Below is an example of how to do this:
@@ -176,6 +178,25 @@ RequestOptions reqOpt = RequestOptions.builder()
         .hostnameVerifier(hostnameVerifier)
         .sslSocketFactory(sslSocketFactory)
         .build();
+```
+
+### Access Token Proactive Expiry Offset
+
+The `ConfidentialClient` refreshes access tokens proactively before their actual server-declared expiry to reduce the risk of a token expiring mid-request (e.g. due to latency or clock skew).
+
+Default behaviour:
+- A 30 second (30,000 ms) proactive offset is applied automatically.
+- Calls to `getAccessToken()` (or `getAccessToken(false)`) reuse the cached token while it is still considered valid under this adjusted expiry.
+- `getAccessToken(true)` forces a fresh token unless one was very recently refreshed (within 5 seconds) to avoid unnecessary duplicate requests.
+
+You can override the proactive offset by configuring it in `RequestOptions`:
+
+#### Example
+```java
+RequestOptions options = RequestOptions.builder()
+    .accessTokenExpiryOffset(Duration.ofSeconds(90)) // 90 seconds
+    .build();
+ConfidentialClient client = new ConfidentialClient("./path/to/config.json", options);
 ```
 
 ## Modules
