@@ -47,7 +47,7 @@ jobs:
           fetch-depth: 0 # needed for super-linter
 
       - name: Lint codebase
-        uses: super-linter/super-linter/slim@ffde3b2b33b745cb612d787f669ef9442b1339a6 # v8.1.0
+        uses: super-linter/super-linter/slim@4ce20838b8ab83717e78138c5b3a1407148e0918 # v8.7.0
         env:
           IGNORE_GITIGNORED_FILES: true
           FILTER_REGEX_INCLUDE: .*src/.*, .*test/.*
