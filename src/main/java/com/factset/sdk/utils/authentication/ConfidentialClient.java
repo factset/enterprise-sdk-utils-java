@@ -14,6 +14,7 @@ import com.nimbusds.jose.util.IOUtils;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.ParseException;
+import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.TokenResponse;
 import com.nimbusds.oauth2.sdk.auth.JWTAuthenticationClaimsSet;
@@ -47,6 +48,7 @@ public class ConfidentialClient implements OAuth2Client {
     private final Configuration config;
     private OIDCProviderMetadata providerMetadata;
     private final RequestOptions requestOptions;
+    private final Scope scope;
     private TokenRequestBuilder tokenRequestBuilder;
     private long jwsIssuedAt;
     private long accessTokenExpireTime;
@@ -108,10 +110,12 @@ public class ConfidentialClient implements OAuth2Client {
      * information about the OAuth 2.0 client is stored and used whenever a new access token is fetched.
      *
      * @param config Configuration object.
-     * @param requestOptions Object that can configure options like proxy and SSL settings
+     * @param requestOptions Object that can configure options like proxy and SSL settings. Any scopes set here
+     *                       replace the scopes configured on the Configuration.
      * @throws AuthServerMetadataContentException If Meta Issuer or Meta Token Endpoint is missing.
      * @throws AuthServerMetadataException        If reading from URL is unsuccessful.
      * @throws NullPointerException               Unchecked exception, if config is null.
+     * @throws IllegalArgumentException           Unchecked exception, if any scope is null or empty.
      */
     public ConfidentialClient(final Configuration config, RequestOptions requestOptions)
             throws AuthServerMetadataContentException, AuthServerMetadataException {
@@ -119,6 +123,9 @@ public class ConfidentialClient implements OAuth2Client {
         this.config = config;
         LOGGER.debug("Finished initialising configuration");
         this.requestOptions = requestOptions == null ? RequestOptions.builder().build() : requestOptions;
+
+        // Resolved before the well known URI round trip so an invalid scope fails fast.
+        this.scope = resolveScope(this.config, this.requestOptions);
 
         this.requestProviderMetadata();
     }
@@ -230,6 +237,38 @@ public class ConfidentialClient implements OAuth2Client {
                 new TokenRequestBuilder().uri(this.providerMetadata.getTokenEndpointURI());
     }
 
+    /**
+     * Resolves the scopes to request, preferring those set on the RequestOptions over those on the Configuration.
+     * RequestOptions scopes replace rather than merge with the Configuration ones, so a client can narrow the token
+     * without editing the configuration file.
+     */
+    private static Scope resolveScope(final Configuration config, final RequestOptions options) {
+        // Lombok skips @Builder.Default when the setter is called explicitly, so scopes(null) leaves a null here.
+        final List<String> optionScopes = options.getScopes();
+        final List<String> values =
+            optionScopes != null && !optionScopes.isEmpty() ? optionScopes : config.getScopes();
+
+        final Scope resolved = new Scope();
+        if (values == null) {
+            return resolved;
+        }
+
+        for (final String value : values) {
+            if (value == null || value.trim().isEmpty()) {
+                throw new IllegalArgumentException("scopes can not contain null or empty values");
+            }
+            resolved.add(value.trim());
+        }
+
+        if (!resolved.isEmpty()) {
+            LOGGER.debug("Requesting access token with scopes: {}", resolved);
+        }
+
+        return resolved;
+    }
+
+    // The cache holds a single token because the scopes are fixed for the lifetime of this client. Allowing
+    // per-call scopes would require keying this cache by scope set.
     private boolean isCachedTokenValid() {
         if (this.accessToken == null) {
             return false;
@@ -244,7 +283,10 @@ public class ConfidentialClient implements OAuth2Client {
         final TokenResponse tokenRes;
         try {
             final SignedJWT signedJwt = this.getSignedJwt();
-            final TokenRequest tokenRequest = this.tokenRequestBuilder.signedJwt(signedJwt).build();
+            // Applied here rather than on builder creation because the protected constructors replace
+            // tokenRequestBuilder after requestProviderMetadata() has run.
+            final TokenRequest tokenRequest =
+                this.tokenRequestBuilder.signedJwt(signedJwt).scope(this.scope).build();
 
             final HTTPRequest httpRequest = tokenRequest.toHTTPRequest();
             httpRequest.setProxy(this.requestOptions.getProxy());

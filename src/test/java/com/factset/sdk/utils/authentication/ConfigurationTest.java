@@ -1,6 +1,7 @@
 package com.factset.sdk.utils.authentication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -10,6 +11,8 @@ import com.nimbusds.jose.jwk.RSAKey;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -180,5 +183,90 @@ class ConfigurationTest {
         } catch (Exception e) {
             fail();
         }
+    }
+
+    @Test
+    void configurationConfigPathWithScopesParsesScopes() throws Exception {
+        Configuration configuration = new Configuration(String.valueOf(Paths.get(String.valueOf(pathToResources),
+            "validConfigWithScopes.json")));
+
+        assertEquals(Arrays.asList("factset.api.a", "factset.api.b"), configuration.getScopes());
+    }
+
+    @Test
+    void configurationConfigPathWithoutScopesDefaultsToEmptyList() throws Exception {
+        Configuration configuration = new Configuration(String.valueOf(Paths.get(String.valueOf(pathToResources),
+            "validConfigStructure.txt")));
+
+        assertNotNull(configuration.getScopes());
+        assertTrue(configuration.getScopes().isEmpty());
+    }
+
+    @Test
+    void configurationConfigPathWithBlankScopeThrowsIllegalArgumentException() {
+        try {
+            new Configuration(String.valueOf(Paths.get(String.valueOf(pathToResources),
+                "validConfigBlankScope.json")));
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+            assertEquals("scopes can not contain null or empty values", e.getMessage());
+        }
+    }
+
+    @Test
+    void configurationConfigPathWithScopesNotAnArrayThrowsConfigurationException() {
+        assertThrows(ConfigurationException.class, () -> new Configuration(
+            String.valueOf(Paths.get(String.valueOf(pathToResources), "invalidScopesNotArray.json"))));
+    }
+
+    @Test
+    void configurationPassScopesStoresScopes() throws Exception {
+        Configuration configuration = new Configuration("test", "test", RSAKey.parse(validJwk), null,
+            Arrays.asList("factset.api.a", "factset.api.b"));
+
+        assertEquals(Arrays.asList("factset.api.a", "factset.api.b"), configuration.getScopes());
+        assertEquals(new URL(Constants.FACTSET_WELL_KNOWN_URI), configuration.getWellKnownUrl());
+    }
+
+    @Test
+    void configurationPassNullScopesDefaultsToEmptyList() throws Exception {
+        Configuration configuration = new Configuration("test", "test", RSAKey.parse(validJwk), null, null);
+
+        assertNotNull(configuration.getScopes());
+        assertTrue(configuration.getScopes().isEmpty());
+    }
+
+    @Test
+    void configurationPassBlankScopeThrowsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () -> new Configuration("test", "test",
+            RSAKey.parse(validJwk), null, Arrays.asList("factset.api.a", " ")));
+    }
+
+    @Test
+    void configurationNotPassingScopesDefaultsToEmptyList() throws Exception {
+        Configuration configuration = new Configuration("test", "test", RSAKey.parse(validJwk));
+
+        assertNotNull(configuration.getScopes());
+        assertTrue(configuration.getScopes().isEmpty());
+    }
+
+    @Test
+    void configurationGetScopesReturnsUnmodifiableList() throws Exception {
+        Configuration configuration = new Configuration("test", "test", RSAKey.parse(validJwk), null,
+            Arrays.asList("factset.api.a"));
+
+        List<String> scopes = configuration.getScopes();
+        assertThrows(UnsupportedOperationException.class, () -> scopes.add("factset.api.b"));
+    }
+
+    @Test
+    void configurationScopesAreSnapshottedFromTheSuppliedList() throws Exception {
+        List<String> supplied = new java.util.ArrayList<>(Arrays.asList("factset.api.a"));
+        Configuration configuration = new Configuration("test", "test", RSAKey.parse(validJwk), null, supplied);
+
+        supplied.add("factset.api.b");
+
+        assertEquals(Arrays.asList("factset.api.a"), configuration.getScopes());
     }
 }

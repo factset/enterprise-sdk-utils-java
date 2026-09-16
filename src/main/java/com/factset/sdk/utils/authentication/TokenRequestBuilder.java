@@ -14,6 +14,7 @@ public class TokenRequestBuilder {
 
     private URI uri;
     private SignedJWT signedJwt;
+    private Scope scope = new Scope();
 
     /**
      * Initialises the TokenRequestBuilder instance.
@@ -46,8 +47,20 @@ public class TokenRequestBuilder {
     }
 
     /**
-     * Creates and returns an instance of the TokenRequest with a ClientCredentialsGrant and the specified URI and
-     * SignedJWT.
+     * Updates the scope field and returns the updated builder. An empty scope means no scope parameter is sent, in
+     * which case the authorization server grants the client's default registered scopes.
+     *
+     * @param scopeParam The Scope instance, null is treated as an empty scope.
+     * @return The TokenRequestBuilder.
+     */
+    public TokenRequestBuilder scope(final Scope scopeParam) {
+        this.scope = scopeParam == null ? new Scope() : scopeParam;
+        return this;
+    }
+
+    /**
+     * Creates and returns an instance of the TokenRequest with a ClientCredentialsGrant and the specified URI,
+     * SignedJWT and Scope.
      *
      * @return The TokenRequest instance.
      */
@@ -56,7 +69,7 @@ public class TokenRequestBuilder {
             this.uri,
             new PrivateKeyJWT(this.signedJwt),
             new ClientCredentialsGrant(),
-            new Scope()
+            this.scope
         );
     }
 }
