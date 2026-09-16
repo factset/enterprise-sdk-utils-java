@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static java.nio.file.Files.readAllBytes;
@@ -69,6 +70,59 @@ public class ConfidentialClientIT
             .map(log -> log.getLevel() + ":" + log.getFormattedMessage())
             .haveAtLeastOne(matching(startsWith("TRACE:Token Request: POST")))
             .haveAtLeastOne(matching(startsWith("TRACE:Token Response: 400 Bad Request")));
+    }
+
+    @Test
+    void sends_scope_parameter_when_scopes_configured(WireMockRuntimeInfo wm) throws Exception
+    {
+        stubFor(post("/as/token.oauth2").willReturn(okJson(
+            "{\"access_token\":\"xxx_access_token\",\"token_type\":\"Bearer\",\"expires_in\":1234}")));
+
+        Configuration scopedConfig = new Configuration(
+            "testClientId",
+            "testAuthType",
+            RSAKey.parse(ConfidentialClientTest.validJwk),
+            String.format("http://localhost:%d/well-known", wm.getHttpPort()),
+            Arrays.asList("factset.api.a", "factset.api.b"));
+
+        new ConfidentialClient(scopedConfig).getAccessToken();
+
+        // Scope values are space delimited, and URLEncoder renders that space as '+' in the form body.
+        verify(postRequestedFor(urlEqualTo("/as/token.oauth2"))
+            .withRequestBody(containing("scope=factset.api.a+factset.api.b")));
+    }
+
+    @Test
+    void sends_scope_parameter_from_request_options(WireMockRuntimeInfo wm) throws Exception
+    {
+        stubFor(post("/as/token.oauth2").willReturn(okJson(
+            "{\"access_token\":\"xxx_access_token\",\"token_type\":\"Bearer\",\"expires_in\":1234}")));
+
+        Configuration scopedConfig = new Configuration(
+            "testClientId",
+            "testAuthType",
+            RSAKey.parse(ConfidentialClientTest.validJwk),
+            String.format("http://localhost:%d/well-known", wm.getHttpPort()),
+            Arrays.asList("factset.api.a"));
+
+        RequestOptions reqOptions = RequestOptions.builder().scopes(Arrays.asList("factset.api.c")).build();
+
+        new ConfidentialClient(scopedConfig, reqOptions).getAccessToken();
+
+        verify(postRequestedFor(urlEqualTo("/as/token.oauth2"))
+            .withRequestBody(containing("scope=factset.api.c")));
+    }
+
+    @Test
+    void omits_scope_parameter_when_no_scopes_configured() throws Exception
+    {
+        stubFor(post("/as/token.oauth2").willReturn(okJson(
+            "{\"access_token\":\"xxx_access_token\",\"token_type\":\"Bearer\",\"expires_in\":1234}")));
+
+        new ConfidentialClient(configuration).getAccessToken();
+
+        verify(postRequestedFor(urlEqualTo("/as/token.oauth2"))
+            .withRequestBody(notMatching("(?s).*scope=.*")));
     }
 
     private static ListAssert<ILoggingEvent> assertThatLogs(ThrowingRunnable test)

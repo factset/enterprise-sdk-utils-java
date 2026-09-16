@@ -178,6 +178,47 @@ RequestOptions reqOpt = RequestOptions.builder()
         .build();
 ```
 
+### OAuth 2.0 Scopes
+
+[Scopes](https://github.com/factset/oauth2-guidelines#client-credentials-flow-1) narrow the access an access token
+grants. They are optional: when no scopes are configured, the authorization server grants the client's default
+registered scopes.
+
+Scopes can be set in the configuration file, using the optional `scopes` key:
+
+```json
+{
+    "clientId": "OAuth 2.0 Client ID registered with FactSet's Developer Portal",
+    "clientAuthType": "Confidential",
+    "scopes": ["https://api.factset.com/analytics/lookups.pa.readonly"],
+    "jwk": { }
+}
+```
+
+They can also be set programmatically, either on the `Configuration`:
+
+```java
+Configuration conf = new Configuration(
+        "client id",
+        "Confidential",
+        jwk,
+        null, // use FactSet's default well known URI
+        Arrays.asList("https://api.factset.com/analytics/lookups.pa.readonly"));
+```
+
+or on the `RequestOptions`, which is useful for narrowing a token without editing the configuration file:
+
+```java
+RequestOptions requestOptions = RequestOptions.builder()
+        .scopes(Arrays.asList("https://api.factset.com/analytics/lookups.pa.readonly"))
+        .build();
+
+ConfidentialClient confidentialClient = new ConfidentialClient("./path/to/config.json", requestOptions);
+```
+
+When scopes are set in both places, the ones on `RequestOptions` replace (rather than merge with) the ones on the
+`Configuration`. Scopes are read once, when the `ConfidentialClient` is created.
+
 ## Modules
 
 Information about the various utility modules contained in this library can be found below.
@@ -203,6 +244,7 @@ Classes in the authentication module require OAuth 2.0 client configuration info
     "clientId": "OAuth 2.0 Client ID registered with FactSet's Developer Portal",
     "clientAuthType": "Confidential",
     "owners": ["USERNAME-SERIAL"],
+    "scopes": ["Optional list of OAuth 2.0 scopes to request"],
     "jwk": {
         "kty": "RSA",
         "use": "sig",

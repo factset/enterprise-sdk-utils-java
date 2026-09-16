@@ -15,6 +15,7 @@ import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -461,6 +462,114 @@ class ConfidentialClientTest {
         @Override
         public Map<String, List<String>> toParameters() {
             return null;
+        }
+    }
+
+    @Test
+    void getAccessTokenWithConfigScopesSendsScopeOnTokenRequest() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
+                mockedURL, "validConfigWithScopes.json"
+        );
+
+        HTTPRequest mockedRequest = mock(HTTPRequest.class);
+        TokenRequestBuilder tokenRequestBuilderSpy = ConfidentialClientTest.createTokenRequestBuilderSpy(
+                HTTPResponse.SC_OK,
+                "{\"access_token\":\"test token\",\"token_type\":\"Bearer\",\"expires_in\":899}",
+                true,
+                mockedRequest
+        );
+
+        new ConfidentialClient(configurationMock, tokenRequestBuilderSpy).getAccessToken();
+
+        verify(tokenRequestBuilderSpy).scope(new Scope("factset.api.a", "factset.api.b"));
+    }
+
+    @Test
+    void getAccessTokenWithoutScopesSendsEmptyScopeOnTokenRequest() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
+                mockedURL, "validConfig.txt"
+        );
+
+        HTTPRequest mockedRequest = mock(HTTPRequest.class);
+        TokenRequestBuilder tokenRequestBuilderSpy = ConfidentialClientTest.createTokenRequestBuilderSpy(
+                HTTPResponse.SC_OK,
+                "{\"access_token\":\"test token\",\"token_type\":\"Bearer\",\"expires_in\":899}",
+                true,
+                mockedRequest
+        );
+
+        new ConfidentialClient(configurationMock, tokenRequestBuilderSpy).getAccessToken();
+
+        verify(tokenRequestBuilderSpy).scope(new Scope());
+    }
+
+    @Test
+    void getAccessTokenWithRequestOptionsScopesOverridesConfigScopes() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
+                mockedURL, "validConfigWithScopes.json"
+        );
+
+        HTTPRequest mockedRequest = mock(HTTPRequest.class);
+        TokenRequestBuilder tokenRequestBuilderSpy = ConfidentialClientTest.createTokenRequestBuilderSpy(
+                HTTPResponse.SC_OK,
+                "{\"access_token\":\"test token\",\"token_type\":\"Bearer\",\"expires_in\":899}",
+                true,
+                mockedRequest
+        );
+
+        RequestOptions reqOptions = RequestOptions.builder().scopes(Arrays.asList("factset.api.c")).build();
+
+        new ConfidentialClient(configurationMock, tokenRequestBuilderSpy, reqOptions).getAccessToken();
+
+        verify(tokenRequestBuilderSpy).scope(new Scope("factset.api.c"));
+    }
+
+    @Test
+    void confidentialClientWithEmptyRequestOptionsScopesFallsBackToConfigScopes() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
+                mockedURL, "validConfigWithScopes.json"
+        );
+
+        HTTPRequest mockedRequest = mock(HTTPRequest.class);
+        TokenRequestBuilder tokenRequestBuilderSpy = ConfidentialClientTest.createTokenRequestBuilderSpy(
+                HTTPResponse.SC_OK,
+                "{\"access_token\":\"test token\",\"token_type\":\"Bearer\",\"expires_in\":899}",
+                true,
+                mockedRequest
+        );
+
+        // Explicitly setting null bypasses Lombok's @Builder.Default, so this also covers the null case.
+        RequestOptions reqOptions = RequestOptions.builder().scopes(null).build();
+
+        new ConfidentialClient(configurationMock, tokenRequestBuilderSpy, reqOptions).getAccessToken();
+
+        verify(tokenRequestBuilderSpy).scope(new Scope("factset.api.a", "factset.api.b"));
+    }
+
+    @Test
+    void confidentialClientWithBlankScopeInRequestOptionsThrowsIllegalArgumentException() throws Exception {
+        HttpURLConnection mockedConn = mock(HttpURLConnection.class);
+        URL mockedURL = getUrlMockResponse("exampleResponseWellKnownUri.txt", mockedConn);
+        Configuration configurationMock = ConfidentialClientTest.getConfigSpyMockedResponse(
+                mockedURL, "validConfig.txt"
+        );
+
+        RequestOptions reqOptions = RequestOptions.builder().scopes(Arrays.asList("factset.api.a", " ")).build();
+
+        try {
+            new ConfidentialClient(configurationMock, reqOptions);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+            assertEquals("scopes can not contain null or empty values", e.getMessage());
         }
     }
 }

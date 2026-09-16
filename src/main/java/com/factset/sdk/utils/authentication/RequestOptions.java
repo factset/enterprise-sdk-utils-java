@@ -7,6 +7,8 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
 import java.net.Proxy;
+import java.util.Collections;
+import java.util.List;
 
 @Value
 @Builder
@@ -22,4 +24,10 @@ public class RequestOptions {
 
     @Builder.Default
     String userAgent = "fds-sdk/java/utils/1.1.6 (" + System.getProperty("os.name") + "; Java" + System.getProperty("java.version") + ")";
+
+    /**
+     * When set and non-empty, these replace (rather than merge with) any scopes configured on the {@link Configuration}.
+     */
+    @Builder.Default
+    List<String> scopes = Collections.emptyList();
 }
